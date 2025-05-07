@@ -5,66 +5,70 @@ from datetime import datetime
 
 Base = declarative_base()
 
-# Tabla Usuarios
-class Usuario(Base):
-    __tablename__ = 'usuarios'
+# Tabla User
+class User(Base):
+    __tablename__ = 'user'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_pk = Column(Integer, primary_key=True, autoincrement=True)
+    public_key = Column(String, nullable=False)
+    correo = Column(String, nullable=False)
+    hash = Column(String, nullable=False)
+    contraseña = Column(String, nullable=False)
     nombre = Column(String, nullable=False)
-    llave_publica = Column(String, nullable=False)
-    hash_clave_privada = Column(String, nullable=False)
-    metodo_autenticacion = Column(String, nullable=False)
-
-    def __repr__(self):
-        return f"<Usuario(id={self.id}, nombre={self.nombre})>"
 
 # Tabla Mensajes
-class Mensaje(Base):
+class Mensajes(Base):
     __tablename__ = 'mensajes'
 
-    id = Column(Integer, primary_k=True, autoincrement=True)
-    emisor_id = Column(Integer, ForeignKey('usuarios.id'), nullable=False)
-    receptor_id = Column(Integer, ForeignKey('usuarios.id'), nullable=False)
-    mensaje_cifrado = Column(LargeBinary, nullable=False)
-    firma_digital = Column(LargeBinary, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_bloque = Column(Integer, ForeignKey('blockchain_grupo.id_bloque_pk'))
+    id_remitente = Column(Integer, ForeignKey('user.id_pk'))
+    id_receptor = Column(Integer, ForeignKey('user.id_pk'))
+    mensaje = Column(String, nullable=False)
+    firma = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
 
-    # Relaciones con la tabla Usuario
-    emisor = relationship("Usuario", foreign_keys=[emisor_id])
-    receptor = relationship("Usuario", foreign_keys=[receptor_id])
+    remitente = relationship("User", foreign_keys=[id_remitente])
+    receptor = relationship("User", foreign_keys=[id_receptor])
 
-    def __repr__(self):
-        return f"<Mensaje(id={self.id}, emisor_id={self.emisor_id}, receptor_id={self.receptor_id})>"
+# Tabla Blockchain Grupo (para mensajes individuales también)
+class BlockchainGrupo(Base):
+    __tablename__ = 'blockchain_grupo'
+
+    id_bloque_pk = Column(Integer, primary_key=True, autoincrement=True)
+    hash_anterior = Column(String, nullable=False)
+    hash_actual = Column(String, nullable=False)
+    nonce = Column(String, nullable=False)
+    timestamp = Column(String, nullable=False)
 
 # Tabla Grupos
-class Grupo(Base):
+class Grupos(Base):
     __tablename__ = 'grupos'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    clave_AES_cifrada = Column(String, nullable=False)
-    
-    # Relacion con Usuarios (usuarios que pertenecen al grupo)
-    usuarios = relationship("Usuario", secondary='grupo_usuario', backref='grupos')
+    id_pk = Column(Integer, primary_key=True, autoincrement=True)
+    nombre_de_grupo = Column(String, nullable=False)
+    llave_publica = Column(String, nullable=False)
 
-    def __repr__(self):
-        return f"<Grupo(id={self.id}, clave_AES_cifrada={self.clave_AES_cifrada})>"
+# Tabla miembros de grupos
+class MiembrosGrupos(Base):
+    __tablename__ = 'miembros_de_grupos'
 
-# Tabla de relación entre Grupos y Usuarios
-class GrupoUsuario(Base):
-    __tablename__ = 'grupo_usuario'
+    id_pk = Column(Integer, primary_key=True, autoincrement=True)
+    id_grupo_fk = Column(Integer, ForeignKey('grupos.id_pk'))
+    id_user_fk = Column(Integer, ForeignKey('user.id_pk'))
 
-    grupo_id = Column(Integer, ForeignKey('grupos.id'), primary_key=True)
-    usuario_id = Column(Integer, ForeignKey('usuarios.id'), primary_key=True)
+# Tabla Mensajes Grupo
+class MensajesGrupo(Base):
+    __tablename__ = 'mensajes_grupo'
 
-    def __repr__(self):
-        return f"<GrupoUsuario(grupo_id={self.grupo_id}, usuario_id={self.usuario_id})>"
+    id_transacciones_pk = Column(Integer, primary_key=True, autoincrement=True)
+    id_bloque_grupo = Column(Integer, ForeignKey('blockchain_grupo.id_bloque_pk'))
+    id_grupo_fk = Column(Integer, ForeignKey('grupos.id_pk'))
+    id_remitente_fk = Column(Integer, ForeignKey('user.id_pk'))
+    mensaje = Column(String, nullable=False)
+    firma = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
 
-# Tabla Blockchain
-class Blockchain(Base):
-    __tablename__ = 'blockchain'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    transacciones = Column(String, nullable=False)
-
-    def __repr__(self):
-        return f"<Blockchain(id={self.id}, transacciones={self.transacciones})>"
+    remitente = relationship("User", foreign_keys=[id_remitente_fk])
+    grupo = relationship("Grupos", foreign_keys=[id_grupo_fk])
+    bloque = relationship("BlockchainGrupo", foreign_keys=[id_bloque_grupo])
