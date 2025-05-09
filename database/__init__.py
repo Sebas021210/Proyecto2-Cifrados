@@ -1,5 +1,5 @@
-from .database import Database
-from .schemas import Usuario, Mensaje, Grupo, Blockchain
+from backend.database.database import Database
+from backend.database.schemas import Usuario, Mensaje, Grupo, Blockchain
 import os
 
 current_directory = os.path.dirname(os.path.abspath(__file__))

@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routes import auth_router
-from backend.routes import file_router  # Import the file router
 
 app = FastAPI(
     title="Cifrados: Laboratorio 4",
