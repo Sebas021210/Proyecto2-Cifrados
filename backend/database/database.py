@@ -3,7 +3,7 @@ import logging
 from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from backend.database.schemas import Base, Usuario, Mensaje, Grupo, Blockchain
+from backend.database.schemas import Base
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
