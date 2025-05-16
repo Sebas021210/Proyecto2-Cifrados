@@ -1,85 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.exc import IntegrityError
-
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
 from backend.models.responses import SuccessfulLoginResponse, SuccessfulRegisterResponse
-from backend.models.user import UserBase, LoginRequest
-from backend.database import db, User
-from backend.controllers.auth import (
-    login as login_controller,
-    register as register_controller,
-    get_current_user,
-)
-from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
+from backend.models.user import LoginRequest
+from backend.database import User, get_db
+from backend.utils.auth import create_access_token, verify_password, get_password_hash, get_current_user
+from datetime import timedelta
 
 router = APIRouter()
 
-@router.post("/login", response_model=SuccessfulLoginResponse, status_code=200)
-async def login(login_request: LoginRequest) -> SuccessfulLoginResponse:
-    """
-    Login endpoint to authenticate users using query parameters.
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-    It returns a JWT token and the user's email if successful.
-    """
-    u, t = login_controller(login_request.email, login_request.password)
+@router.post("/login", response_model=SuccessfulLoginResponse)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.correo == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.contraseña):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    if u and t:
-        return SuccessfulLoginResponse(
-            email=u,
-            jwt_token=t
-        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = create_access_token(data={"sub": user.correo}, expires_delta=access_token_expires)
+    return SuccessfulLoginResponse(email=user.correo, jwt_token=token)
 
-    raise HTTPException(
-        status_code=401,
-        detail="Invalid credentials",
-    )
+@router.post("/register", response_model=SuccessfulRegisterResponse)
+def register(user: LoginRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.correo == user.email).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="User already exists")
+    hashed = get_password_hash(user.password)
+    new_user = User(correo=user.email, contraseña=hashed)
+    db.add(new_user)
+    db.commit()
+    return SuccessfulRegisterResponse(email=new_user.correo, message="User created successfully")
 
-@router.post("/register", response_model=SuccessfulRegisterResponse, status_code=201)
-async def register(user: LoginRequest) -> SuccessfulRegisterResponse:
-    """
-    Registration endpoint to create a new user.
-    """
-    try:
-        register_controller(user.email, user.password)
-    except IntegrityError:
-        raise HTTPException(
-            status_code=409,
-            detail="User already exists",
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Error creating user: {e}",
-        )
-
-    return SuccessfulRegisterResponse(
-        email=str(user.email),
-        message="User created successfully",
-    )
-
-@router.post("/generate-keys")
-def generate_keys(user: User = Depends(get_current_user)):
-    """Genera un par de llaves RSA y ECC para el usuario autenticado."""
-
-    with db.write() as session:
-        # Se obtiene el usuario desde la BD
-        user_in_db = session.query(User).filter_by(email=user.email).first()
-
-        if not user_in_db:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-        # Generar llaves RSA
-        rsa_private, rsa_public = generate_rsa_keys()
-        # Generar llaves ECC
-        ecc_private, ecc_public = generate_ecc_keys()
-
-        # Guardar llaves públicas
-        user_in_db.public_key_RSA = rsa_public
-        user_in_db.public_key_ECC = ecc_public
-
-        session.commit()
-
-        return {
-            "message": "Llaves generadas exitosamente.",
-            "rsa_private_key": rsa_private,
-            "ecc_private_key": ecc_private
-        }
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    return {"email": current_user.correo}
