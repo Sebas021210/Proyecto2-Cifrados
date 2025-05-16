@@ -1,5 +1,5 @@
 from backend.database.database import Database
-from backend.database.schemas import User, Mensajes, Grupos, BlockchainGrupo, MensajesGrupo, MiembrosGrupos
+from backend.database.schemas import User, Mensajes, Grupos, MensajesGrupo, MiembrosGrupos
 import os
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
