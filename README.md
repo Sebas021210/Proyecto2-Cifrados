@@ -2,7 +2,7 @@
 
 ## Diagrama UML de base de datos
 
-![Diagrama de red](diagrama.jpeg)
+![Diagrama de red](diagrama.png)
 
 
 Este modelo de base de datos está diseñado para gestionar mensajes entre usuarios y grupos, integrando tecnología *Blockchain* para asegurar la integridad de los mensajes. A continuación se detallan las tablas y sus relaciones:
