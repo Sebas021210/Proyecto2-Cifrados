@@ -5,3 +5,5 @@ sqlalchemy~=2.0.38
 pyjwt~=2.10.1
 python-multipart~=0.0.20
 cryptography~=44.0.2
+python-jose~=3.4.0
+passlib~=1.7.4
