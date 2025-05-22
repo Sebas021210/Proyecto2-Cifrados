@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from backend.models.responses import SuccessfulLoginResponse, SuccessfulRegisterResponse
@@ -15,13 +15,20 @@ from backend.models.message import MessageIndidualRequest, MessageIndividualResp
 
 router = APIRouter()
 
-@router.post("/message")
-def send_message(message_request: MessageIndidualRequest):
+@router.post("/message/{user_destino}")
+def send_individual_message(
+    user_destino: int = Path(..., description="ID del usuario destino"),
+    data: MessageIndidualRequest = ...
+):
     try:
-        result = guardar_mensaje_individual(message_request)
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Error saving message: {e}",
+        result = guardar_mensaje_individual(
+            id_remitente=data.id_remitente,
+            id_receptor=user_destino,
+            mensaje=data.mensaje,
+            clave_aes_cifrada=data.clave_aes_cifrada,
+            firma=data.firma,
+            hash_mensaje=data.hash_mensaje
         )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
