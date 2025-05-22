@@ -28,7 +28,7 @@ def send_individual_message(
         
         new_message = guardar_mensaje_individual(
             db=db,
-            id_remitente=message_data.id_remitente,
+            id_remitente=user.id_pk,
             id_receptor=receptor.id_pk,
             mensaje=message_data.mensaje,
             firma=message_data.firma,
