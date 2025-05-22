@@ -17,18 +17,28 @@ router = APIRouter()
 
 @router.post("/message/{user_destino}")
 def send_individual_message(
-    user_destino: int = Path(..., description="ID del usuario destino"),
-    data: MessageIndidualRequest = ...
+    user_destino: str,
+    message_data: MessageIndidualRequest,
+    user: User = Depends(get_current_user),
 ):
     try:
-        result = guardar_mensaje_individual(
-            id_remitente=data.id_remitente,
-            id_receptor=user_destino,
-            mensaje=data.mensaje,
-            clave_aes_cifrada=data.clave_aes_cifrada,
-            firma=data.firma,
-            hash_mensaje=data.hash_mensaje
+        receptor = db.query(User).filter(User.correo == user_destino).first()
+        if receptor is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        new_message = guardar_mensaje_individual(
+            db=db,
+            id_remitente=message_data.id_remitente,
+            id_receptor=receptor.id_pk,
+            mensaje=message_data.mensaje,
+            firma=message_data.firma,
+            hash_mensaje=message_data.hash_mensaje,
+            clave_aes_cifrada=message_data.clave_aes_cifrada
         )
-        return result
+        return MessageIndividualResponse(
+            message=new_message["message"],
+            timestamp=new_message["timestamp"]
+        )
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
