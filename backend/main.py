@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from dotenv import load_dotenv
+load_dotenv()
 from backend.routes import auth_router
+
 
 app = FastAPI(
     title="Cifrados: Laboratorio 4",

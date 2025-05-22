@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login con Google OAuth</title>
+</head>
+<body>
+  <h1>Probar Login con Google</h1>
+  <button onclick="startLogin()">Login con Google</button>
+
+  <script>
+    async function startLogin() {
+      // Redirige al backend para iniciar login
+      window.location.href = 'http://localhost:8000/auth/login';  // Cambia el puerto si es necesario
+    }
+  </script>
+</body>
+</html>
