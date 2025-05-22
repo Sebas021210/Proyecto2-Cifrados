@@ -2,6 +2,8 @@ from backend.database import Grupos
 from backend.database.database import db_instance
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from backend.database.schemas import MiembrosGrupos, Grupos, User
+from keys import generar_llaves_rsa, generar_llaves_ecc
+from sqlalchemy.orm import Session
 
 def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
     with db_instance.write() as session:
@@ -33,19 +35,31 @@ def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
         return nuevo_miembro
 
 
-def crear_grupo(nombre: str, llave_publica: str, tipo_cifrado: str) -> Grupos:
+def crear_grupo(session: Session, nombre: str, tipo_cifrado: str) -> Grupos:
     tipo_cifrado = tipo_cifrado.upper()
     cifrados_validos = ['RSA+AES', 'ECC']
-
+    
     if tipo_cifrado not in cifrados_validos:
         raise ValueError("Tipo de cifrado no válido. Opciones: RSA+AES o ECC.")
+    
+    # Generar llaves
+    if tipo_cifrado == 'RSA+AES':
+        llave_privada, llave_publica = generar_llaves_rsa()
+    elif tipo_cifrado == 'ECC':
+        llave_privada, llave_publica = generar_llaves_ecc()
+    
+    grupo = Grupos(
+        nombre_de_grupo=nombre,
+        tipo_cifrado=tipo_cifrado,
+        llave_publica=llave_publica,
+        # Opcional: puedes guardar la privada cifrada si lo deseas
+    )
 
-    with db_instance.write() as session:
-        grupo = Grupos(
-            nombre_de_grupo=nombre,
-            llave_publica=llave_publica,
-            tipo_cifrado=tipo_cifrado
-        )
-        session.add(grupo)
-        # session.commit() ya lo hace el context manager db_instance.write()
-        return grupo
+    session.add(grupo)
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise ValueError("Error: Ya existe un grupo con este nombre.")
+
+    return grupo
