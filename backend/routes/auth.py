@@ -30,55 +30,60 @@ async def login(request: Request):
     return RedirectResponse(url=google_auth_url)
 
 
+import traceback
+
 @router.get("/callback")
 async def auth_callback(code: str, request: Request, db=Depends(get_db)):
-    token_request_uri = "https://oauth2.googleapis.com/token"
-    data = {
-        'code': code,
-        'client_id': GOOGLE_CLIENT_ID,
-        'client_secret': GOOGLE_CLIENT_SECRET,
-        'redirect_uri': request.url_for('auth_callback'),
-        'grant_type': 'authorization_code',
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(token_request_uri, data=data)
-        response.raise_for_status()
-        token_response = response.json()
-
-    id_token_value = token_response.get('id_token')
-    if not id_token_value:
-        raise HTTPException(status_code=400, detail="Missing id_token in response.")
-
     try:
+        token_request_uri = "https://oauth2.googleapis.com/token"
+        data = {
+            'code': code,
+            'client_id': GOOGLE_CLIENT_ID,
+            'client_secret': GOOGLE_CLIENT_SECRET,
+            'redirect_uri': request.url_for('auth_callback'),
+            'grant_type': 'authorization_code',
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(token_request_uri, data=data)
+            response.raise_for_status()
+            token_response = response.json()
+
+        id_token_value = token_response.get('id_token')
+        if not id_token_value:
+            raise HTTPException(status_code=400, detail="Missing id_token in response.")
+
         id_info = id_token.verify_oauth2_token(id_token_value, requests.Request(), GOOGLE_CLIENT_ID)
 
         email = id_info.get('email')
         name = id_info.get('name')
 
-        # Check if user exists or create one
-        user = db.query(User).filter(User.email == email).first()
+        user = db.query(User).filter(User.correo == email).first()
         if not user:
-            user = User(correo=email, nombre=name)
+            user = User(
+                correo=email,
+                public_key="public_key",
+                hash="hash",
+                contraseña="contraseña",
+                nombre=name,
+            )
             db.add(user)
             db.commit()
             db.refresh(user)
 
-        # Generate access token
-        token = create_access_token(data={"sub": user.email})
+        token = create_access_token(data={"sub": user.correo})
 
-        # Return user info + token to frontend
         return JSONResponse(content={
             "access_token": token,
             "token_type": "bearer",
             "user": {
-                "name": user.name,
-                "email": user.email
+                "name": user.nombre,
+                "email": user.correo
             }
         })
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid id_token: {str(e)}")
-
     except Exception as e:
+        print("❌ Error en /callback:")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
