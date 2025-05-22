@@ -53,6 +53,7 @@ class Grupos(Base):
     id_pk = Column(Integer, primary_key=True, autoincrement=True)
     nombre_de_grupo = Column(String, nullable=False)
     llave_publica = Column(String, nullable=False)
+    tipo_cifrado = Column(String, nullable=False) 
 
 # Tabla miembros de grupos
 class MiembrosGrupos(Base):
