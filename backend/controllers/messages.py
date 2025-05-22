@@ -1,5 +1,6 @@
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
+import hashlib
 
 def sign_message(private_key_pem: str, message: str) -> str:
     private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
@@ -34,4 +35,14 @@ def generate_ecc_key_pair():
         "private_key": private_pem,
         "public_key": public_pem
     }
+
+
+def hash_sha256(message: str) -> str:
+    digest = hashlib.sha256(message.encode()).hexdigest()
+    return digest
+
+def hash_sha3(message: str) -> str:
+    digest = hashlib.sha3_256(message.encode()).hexdigest()
+    return digest
+
 
