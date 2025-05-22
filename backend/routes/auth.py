@@ -18,6 +18,7 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 @router.get("/login")
 async def login(request: Request):
     redirect_uri = request.url_for('auth_callback')
+    print(redirect_uri)
     google_auth_url = (
         f"https://accounts.google.com/o/oauth2/auth"
         f"?client_id={GOOGLE_CLIENT_ID}"
