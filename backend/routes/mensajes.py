@@ -64,3 +64,23 @@ def get_received_messages(user: User = Depends(get_current_user)):
         )
 
     return message_responses
+
+# Route to  get individual messages
+@router.get("/message/sent", response_model=list[MessageReceived])
+def get_sent_messages(user: User = Depends(get_current_user)):
+    messages = db.query(Mensajes).filter(Mensajes.id_remitente == user.id_pk).order_by(Mensajes.timestamp.desc()).all()
+    message_responses = []
+    for msg in messages:
+        message_responses.append(
+            MessageReceived(
+                id=msg.id,
+                message=msg.mensaje,
+                firma=msg.firma,
+                hash_mensaje=msg.hash_mensaje,
+                clave_aes_cifrada=msg.clave_aes_cifrada,
+                timestamp=msg.timestamp,
+                remitente=msg.receptor.correo
+            )
+        )
+
+    return message_responses
