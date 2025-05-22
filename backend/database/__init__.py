@@ -12,6 +12,7 @@ __all__ = [
     "Grupos",
     "Blockchain",
     "MensajesGrupo",
+    "MiembrosGrupos",
 ]
 
 def get_db():
