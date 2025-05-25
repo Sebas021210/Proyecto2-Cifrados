@@ -5,9 +5,9 @@ import hashlib
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from backend.database import Grupos
-from backend.database.database import db_instance
+from backend.database import db as db_instance
 from backend.database.schemas import MiembrosGrupos, Grupos, User
-from keys import generar_llaves_rsa, generar_llaves_ecc
+from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
 from sqlalchemy.orm import Session
 
 from backend.database import db, User, Mensajes, Blockchain
@@ -100,9 +100,9 @@ def crear_grupo(session: Session, nombre: str, tipo_cifrado: str) -> Grupos:
     
     # Generar llaves
     if tipo_cifrado == 'RSA+AES':
-        llave_privada, llave_publica = generar_llaves_rsa()
+        llave_privada, llave_publica = generate_rsa_keys()
     elif tipo_cifrado == 'ECC':
-        llave_privada, llave_publica = generar_llaves_ecc()
+        llave_privada, llave_publica = generate_ecc_keys()
     
     grupo = Grupos(
         nombre_de_grupo=nombre,
