@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from dotenv import load_dotenv
 load_dotenv()
+
 from backend.routes import auth_router
 from backend.routes.mensajes import router as mensajes_router
 
@@ -23,7 +24,6 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(mensajes_router, prefix="/msg", tags=["mensajes"])
-
 
 
 if __name__ == "__main__":

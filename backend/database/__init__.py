@@ -8,6 +8,7 @@ db = Database(f"{current_directory}/db.sqlite")
 __all__ = [
     "db",
     "User",
+    "Blockchain",
     "Mensajes",
     "Grupos",
     "Blockchain",

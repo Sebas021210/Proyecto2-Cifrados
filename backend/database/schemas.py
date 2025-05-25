@@ -40,6 +40,8 @@ class Mensajes(Base):
     id_receptor = Column(Integer, ForeignKey('user.id_pk'))
     mensaje = Column(String, nullable=False)
     firma = Column(String, nullable=False)
+    clave_aes_cifrada = Column(String, nullable=False)
+    hash_mensaje = Column(String, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     remitente = relationship("User", foreign_keys=[id_remitente])
