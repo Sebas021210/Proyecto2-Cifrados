@@ -14,6 +14,16 @@ import hashlib, base64
 from datetime import datetime
 import os
 
+# region: Firmas y Hashing
+
+def calcular_hash_mensaje(mensaje: str, algoritmo: str = "sha256") -> str:
+    if algoritmo == "sha256":
+        return hashlib.sha256(mensaje.encode()).hexdigest()
+    elif algoritmo == "sha3_256":
+        return hashlib.sha3_256(mensaje.encode()).hexdigest()
+    else:
+        raise ValueError("Algoritmo de hash no soportado")
+
 def sign_message(private_key_pem: str, message: str) -> str:
     private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
     signature = private_key.sign(message.encode(), ec.ECDSA(hashes.SHA256()))
@@ -48,14 +58,8 @@ def generate_ecc_key_pair():
         "public_key": public_pem
     }
 
-
-def hash_sha256(message: str) -> str:
-    digest = hashlib.sha256(message.encode()).hexdigest()
-    return digest
-
-def hash_sha3(message: str) -> str:
-    digest = hashlib.sha3_256(message.encode()).hexdigest()
-    return digest
+# endregion
+# region: Grupos y Miembros
 
 def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
     with db_instance.write() as session:
@@ -115,26 +119,8 @@ def crear_grupo(session: Session, nombre: str, tipo_cifrado: str) -> Grupos:
 
     return grupo
 
-def calcular_hash_mensaje(mensaje: str, algoritmo: str = "sha256") -> str:
-    if algoritmo == "sha256":
-        return hashlib.sha256(mensaje.encode()).hexdigest()
-    elif algoritmo == "sha3_256":
-        return hashlib.sha3_256(mensaje.encode()).hexdigest()
-    else:
-        raise ValueError("Algoritmo de hash no soportado")
-
-def verificar_firma_ecc(public_key_pem: str, mensaje: str, firma_b64: str) -> bool:
-    public_key = serialization.load_pem_public_key(public_key_pem.encode())
-    firma = base64.b64decode(firma_b64)
-    try:
-        public_key.verify(
-            firma,
-            mensaje.encode(),
-            ec.ECDSA(hashes.SHA256())
-        )
-        return True
-    except Exception:
-        return False
+# endregion
+# region: Mensajes Individuales
 
 def crear_bloque(hash_mensaje: str, db_session) -> int:
     ultimo_bloque = db_session.query(Blockchain).order_by(Blockchain.id_bloque_pk.desc()).first()
@@ -155,7 +141,7 @@ def crear_bloque(hash_mensaje: str, db_session) -> int:
     db_session.flush()
     return nuevo_bloque.id_bloque_pk
 
-def guardar_mensaje_individual(data):
+def guardar_mensaje_individual(data, algoritmo_hash: str = "sha256"):
     with db.write() as session:
         remitente = session.query(User).filter_by(id_pk=data.id_remitente).first()
         receptor = session.query(User).filter_by(id_pk=data.id_receptor).first()
@@ -163,11 +149,14 @@ def guardar_mensaje_individual(data):
         if not remitente or not receptor:
             raise ValueError("Remitente o receptor no encontrado")
 
-        hash_calculado = calcular_hash_mensaje(data.mensaje)
+        if algoritmo_hash not in ["sha256", "sha3_256"]:
+            raise ValueError("Algoritmo de hash no soportado")
+
+        hash_calculado = calcular_hash_mensaje(data.mensaje, algoritmo_hash)
         if hash_calculado != data.hash_mensaje:
             raise ValueError("El hash del mensaje no coincide, posible alteración.")
 
-        if not verificar_firma_ecc(remitente.public_key, data.mensaje, data.firma):
+        if not verify_signature(remitente.public_key, data.mensaje, data.firma):
             raise ValueError("Firma digital inválida")
 
         id_bloque = crear_bloque(data.hash_mensaje, session)
@@ -186,3 +175,4 @@ def guardar_mensaje_individual(data):
 
         return {"message": "Mensaje guardado correctamente", "timestamp": nuevo_mensaje.timestamp}
     
+# endregion

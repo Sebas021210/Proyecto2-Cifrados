@@ -5,14 +5,17 @@ from backend.models.responses import SuccessfulLoginResponse, SuccessfulRegister
 from backend.models.user import UserBase, LoginRequest
 from backend.database import db, User, Mensajes
 from backend.controllers.auth import get_current_user
-from backend.controllers.messages import sign_message, verify_signature, generate_ecc_key_pair, hash_sha256, hash_sha3
+from backend.controllers.messages import sign_message, verify_signature, generate_ecc_key_pair, calcular_hash_mensaje
 from backend.controllers.messages import crear_grupo, agregar_miembro
 from backend.controllers.messages import guardar_mensaje_individual
 from backend.models.message import FirmaRequest, VerificacionRequest, MensajeSolo
 from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse
 from backend.models.message import MessageIndidualRequest, MessageIndividualResponse, MessageReceived
+from types import SimpleNamespace as Namespace
 
 router = APIRouter()
+
+# region: Mensajes y Firmas
 
 @router.post("/firmar")
 def firmar(request: FirmaRequest):
@@ -28,15 +31,16 @@ def verificar(request: VerificacionRequest):
 def generar_claves_ecc():
     return generate_ecc_key_pair()
 
-@router.post("/hash256")
-def obtener_hash_sha256(request: MensajeSolo):
-    digest = hash_sha256(request.message)
-    return {"hash_sha256": digest}
+@router.post("/hash")
+def obtener_hash(request: MensajeSolo, algoritmo: str = "sha256"):
+    try:
+        digest = calcular_hash_mensaje(request.message, algoritmo)
+        return {"hash": digest, "algoritmo": algoritmo}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/hash3")
-def obtener_hash_sha3(request: MensajeSolo):
-    digest = hash_sha3(request.message)
-    return {"hash_sha3": digest}
+# endregion
+# region: Grupos y Miembros
 
 @router.post("/grupos", response_model=GrupoCreateResponse, status_code=201)
 async def crear_grupo(request: GrupoCreateRequest, user: UserBase = Depends(get_current_user)):
@@ -81,28 +85,34 @@ async def agregar_miembro(request: MiembroAgregarRequest , user: UserBase = Depe
         mensaje="Miembro agregado exitosamente al grupo."
     )
 
+# endregion
+# region: Mensajes Individuales
+
 # Route to send individual messages
 @router.post("/message/{user_destino}")
 def send_individual_message(
     user_destino: str,
     message_data: MessageIndidualRequest,
+    algoritmo_hash: str = "sha256",
     user: User = Depends(get_current_user),
 ):
     try:
         receptor = db.query(User).filter(User.correo == user_destino).first()
         if receptor is None:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         new_message = guardar_mensaje_individual(
-            db=db,
-            id_remitente=user.id_pk,
-            id_receptor=receptor.id_pk,
-            mensaje=message_data.mensaje,
-            firma=message_data.firma,
-            hash_mensaje=message_data.hash_mensaje,
-            clave_aes_cifrada=message_data.clave_aes_cifrada
+            data=Namespace(
+                id_remitente=user.id_pk,
+                id_receptor=receptor.id_pk,
+                mensaje=message_data.mensaje,
+                firma=message_data.firma,
+                hash_mensaje=message_data.hash_mensaje,
+                clave_aes_cifrada=message_data.clave_aes_cifrada
+            ),
+            algoritmo_hash=algoritmo_hash
         )
-        
+
         return MessageIndividualResponse(
             message=new_message["message"],
             timestamp=new_message["timestamp"]
@@ -150,3 +160,5 @@ def get_sent_messages(user: User = Depends(get_current_user)):
         )
 
     return message_responses
+
+# endregion
