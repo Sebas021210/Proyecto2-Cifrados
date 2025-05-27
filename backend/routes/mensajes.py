@@ -4,36 +4,15 @@ from sqlalchemy.exc import IntegrityError
 from backend.models.responses import SuccessfulLoginResponse, SuccessfulRegisterResponse
 from backend.models.user import UserBase, LoginRequest
 from backend.database import db, User, Mensajes
-from backend.controllers.auth import (
-    login as login_controller,
-    register as register_controller,
-    get_current_user,
-)
-from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
-
-from pydantic import BaseModel
+from backend.controllers.auth import get_current_user
 from backend.controllers.messages import sign_message, verify_signature, generate_ecc_key_pair, hash_sha256, hash_sha3
-
 from backend.controllers.messages import crear_grupo, agregar_miembro
-from pydantic import BaseModel, constr
-
 from backend.controllers.messages import guardar_mensaje_individual
+from backend.models.message import FirmaRequest, VerificacionRequest, MensajeSolo
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse
 from backend.models.message import MessageIndidualRequest, MessageIndividualResponse, MessageReceived
 
 router = APIRouter()
-
-class FirmaRequest(BaseModel):
-    private_key: str
-    message: str
-
-class VerificacionRequest(BaseModel):
-    public_key: str
-    message: str
-    signature: str
-
-class MensajeSolo(BaseModel):
-    message: str
-
 
 @router.post("/firmar")
 def firmar(request: FirmaRequest):
@@ -59,19 +38,6 @@ def obtener_hash_sha3(request: MensajeSolo):
     digest = hash_sha3(request.message)
     return {"hash_sha3": digest}
 
-
-# Pydantic para entrada y salida
-class GrupoCreateRequest(BaseModel):
-    nombre: str
-    llave_publica: str
-    tipo_cifrado: str
-
-class GrupoCreateResponse(BaseModel):
-    id_pk: int
-    nombre_de_grupo: str
-    tipo_cifrado: str
-    mensaje: str
-
 @router.post("/grupos", response_model=GrupoCreateResponse, status_code=201)
 async def crear_grupo(request: GrupoCreateRequest, user: UserBase = Depends(get_current_user)):
     try:
@@ -93,16 +59,6 @@ async def crear_grupo(request: GrupoCreateRequest, user: UserBase = Depends(get_
         tipo_cifrado=grupo.tipo_cifrado,
         mensaje="Grupo creado con éxito."
     )
-
-class MiembroAgregarRequest(BaseModel):
-    id_grupo: int
-    id_usuario: int
-
-class MiembroAgregarResponse(BaseModel):
-    id_pk: int
-    id_grupo_fk: int
-    id_user_fk: int
-    mensaje: str
 
 @router.post("/grupos/miembros", response_model=MiembroAgregarResponse, status_code=201)
 async def agregar_miembro(request: MiembroAgregarRequest , user: UserBase = Depends(get_current_user)):

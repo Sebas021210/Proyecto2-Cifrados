@@ -1,22 +1,18 @@
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 import hashlib
-
 from sqlalchemy.exc import IntegrityError, NoResultFound
-
 from backend.database import Grupos
 from backend.database import db as db_instance
 from backend.database.schemas import MiembrosGrupos, Grupos, User
 from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
 from sqlalchemy.orm import Session
-
 from backend.database import db, User, Mensajes, Blockchain
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 import hashlib, base64
 from datetime import datetime
 import os
-
 
 def sign_message(private_key_pem: str, message: str) -> str:
     private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
@@ -90,7 +86,6 @@ def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
         session.add(nuevo_miembro)
         return nuevo_miembro
 
-
 def crear_grupo(session: Session, nombre: str, tipo_cifrado: str) -> Grupos:
     tipo_cifrado = tipo_cifrado.upper()
     cifrados_validos = ['RSA+AES', 'ECC']
@@ -140,7 +135,7 @@ def verificar_firma_ecc(public_key_pem: str, mensaje: str, firma_b64: str) -> bo
         return True
     except Exception:
         return False
-    
+
 def crear_bloque(hash_mensaje: str, db_session) -> int:
     ultimo_bloque = db_session.query(Blockchain).order_by(Blockchain.id_bloque_pk.desc()).first()
     hash_anterior = ultimo_bloque.hash_actual if ultimo_bloque else "0" * 64
