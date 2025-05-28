@@ -4,7 +4,6 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-import hashlib
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from backend.database import Grupos
 from backend.database import db as db_instance
@@ -43,29 +42,6 @@ def verify_signature(public_key_pem: str, message: str, signature_hex: str) -> b
 def generate_aes_key():
     return os.urandom(32)
 
-def generate_rsa_keys():
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048
-    )
-    public_key = private_key.public_key()
-
-    private_pem = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.NoEncryption()
-    ).decode()
-
-    public_pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    ).decode()
-
-    return {
-        "private_key": private_pem,
-        "public_key": public_pem
-    }
-
 def generate_ecc_key_pair():
     private_key = ec.generate_private_key(ec.SECP256R1())
     public_key = private_key.public_key()
@@ -94,18 +70,6 @@ def encrypt_message_aes(message: str, aes_key: bytes) -> dict:
         "ciphertext": base64.b64encode(ciphertext).decode(),
         "nonce": base64.b64encode(nonce).decode()
     }
-
-def encrypt_aes_key_with_rsa(aes_key: bytes, public_key_pem: str) -> str:
-    public_key = serialization.load_pem_public_key(public_key_pem.encode())
-    encrypted_key = public_key.encrypt(
-        aes_key,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-    return base64.b64encode(encrypted_key).decode()
 
 def encrypt_aes_key_with_ecc(aes_key: bytes, peer_public_key_pem: str) -> dict:
     peer_public_key = serialization.load_pem_public_key(peer_public_key_pem.encode())
