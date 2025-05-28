@@ -1,16 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
-from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from backend.models.responses import SuccessfulLoginResponse, SuccessfulRegisterResponse
 from backend.models.user import UserBase, LoginRequest
 from backend.database import db, User, Mensajes
 from backend.controllers.auth import get_current_user
-from backend.controllers.messages import sign_message, verify_signature, generate_ecc_key_pair, calcular_hash_mensaje
+from backend.controllers.messages import sign_message, verify_signature, generate_ecc_key_pair, generate_aes_key, calcular_hash_mensaje
 from backend.controllers.messages import crear_grupo, agregar_miembro
 from backend.controllers.messages import guardar_mensaje_individual
 from backend.models.message import FirmaRequest, VerificacionRequest, MensajeSolo
 from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse
 from backend.models.message import MessageIndidualRequest, MessageIndividualResponse, MessageReceived
+import base64
 from types import SimpleNamespace as Namespace
 
 router = APIRouter()
@@ -27,9 +27,18 @@ def verificar(request: VerificacionRequest):
     is_valid = verify_signature(request.public_key, request.message, request.signature)
     return {"valida": is_valid}
 
-@router.get("/generar-claves-ecc")
-def generar_claves_ecc():
-    return generate_ecc_key_pair()
+@router.get("/generar-claves")
+def generar_todas_las_claves():
+    aes_key = generate_aes_key()
+    ecc_keys = generate_ecc_key_pair()
+
+    return {
+        "aes_key_base64": base64.b64encode(aes_key).decode(),
+        "ecc": {
+            "private_key": ecc_keys["private_key"],
+            "public_key": ecc_keys["public_key"]
+        }
+    }
 
 @router.post("/hash")
 def obtener_hash(request: MensajeSolo, algoritmo: str = "sha256"):
