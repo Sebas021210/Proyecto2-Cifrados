@@ -1,6 +1,9 @@
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.asymmetric import ec, rsa, padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 import hashlib
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from backend.database import Grupos
@@ -81,6 +84,54 @@ def generate_ecc_key_pair():
     return {
         "private_key": private_pem,
         "public_key": public_pem
+    }
+
+def encrypt_message_aes(message: str, aes_key: bytes) -> dict:
+    aesgcm = AESGCM(aes_key)
+    nonce = os.urandom(12)
+    ciphertext = aesgcm.encrypt(nonce, message.encode(), None)
+    return {
+        "ciphertext": base64.b64encode(ciphertext).decode(),
+        "nonce": base64.b64encode(nonce).decode()
+    }
+
+def encrypt_aes_key_with_rsa(aes_key: bytes, public_key_pem: str) -> str:
+    public_key = serialization.load_pem_public_key(public_key_pem.encode())
+    encrypted_key = public_key.encrypt(
+        aes_key,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return base64.b64encode(encrypted_key).decode()
+
+def encrypt_aes_key_with_ecc(aes_key: bytes, peer_public_key_pem: str) -> dict:
+    peer_public_key = serialization.load_pem_public_key(peer_public_key_pem.encode())
+    ephemeral_private_key = ec.generate_private_key(ec.SECP256R1())
+    shared_key = ephemeral_private_key.exchange(ec.ECDH(), peer_public_key)
+
+    derived_key = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=b"ecies",
+    ).derive(shared_key)
+
+    aesgcm = AESGCM(derived_key)
+    nonce = os.urandom(12)
+    encrypted_key = aesgcm.encrypt(nonce, aes_key, None)
+    ephemeral_public_key = ephemeral_private_key.public_key()
+    ephemeral_pem = ephemeral_public_key.public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode()
+
+    return {
+        "encrypted_key": base64.b64encode(encrypted_key).decode(),
+        "nonce": base64.b64encode(nonce).decode(),
+        "ephemeral_public_key": ephemeral_pem
     }
 
 # endregion
