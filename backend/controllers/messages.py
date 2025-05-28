@@ -1,5 +1,6 @@
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import hashlib
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from backend.database import Grupos
@@ -8,8 +9,6 @@ from backend.database.schemas import MiembrosGrupos, Grupos, User
 from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
 from sqlalchemy.orm import Session
 from backend.database import db, User, Mensajes, Blockchain
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
 import hashlib, base64
 from datetime import datetime
 import os
@@ -37,6 +36,32 @@ def verify_signature(public_key_pem: str, message: str, signature_hex: str) -> b
         return True
     except Exception:
         return False
+
+def generate_aes_key():
+    return os.urandom(32)
+
+def generate_rsa_keys():
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048
+    )
+    public_key = private_key.public_key()
+
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption()
+    ).decode()
+
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode()
+
+    return {
+        "private_key": private_pem,
+        "public_key": public_pem
+    }
 
 def generate_ecc_key_pair():
     private_key = ec.generate_private_key(ec.SECP256R1())
