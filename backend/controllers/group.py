@@ -5,6 +5,8 @@ from backend.database.schemas import MiembrosGrupos, Grupos, User
 from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
 from sqlalchemy.orm import Session
 from backend.database import db, User, Mensajes, Blockchain
+from typing import List
+from fastapi import Depends, HTTPException
 
 def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
     with db_instance.write() as session:
@@ -63,3 +65,58 @@ def crear_grupo(session: Session, nombre: str, tipo_cifrado: str) -> Grupos:
         raise ValueError("Error: Ya existe un grupo con este nombre.")
 
     return grupo
+
+
+def listar_grupos(session: Session, user_id: int) -> List[Grupos]:
+    """
+    Retorna los grupos a los que pertenece el usuario especificado.
+    """
+    grupos = session.query(Grupos) \
+        .join(MiembrosGrupos) \
+        .filter(MiembrosGrupos.id_user_fk == user_id) \
+        .all()
+
+    return grupos
+
+def obtener_detalles_grupo(session: Session, grupo_id: int, user_id: int) -> Grupos:
+    grupo = (
+        session.query(Grupos)
+        .join(MiembrosGrupos)
+        .filter(Grupos.id_pk == grupo_id, MiembrosGrupos.id_user_fk == user_id)
+        .first()
+    )
+
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado o acceso denegado")
+
+    return grupo
+
+def invitar_usuario_a_grupo(
+    session: Session, id_grupo: int, id_usuario_invitado: int, id_usuario_que_invita: int
+) -> None:
+    # Verificar que quien invita es miembro del grupo
+    miembro = session.query(MiembrosGrupos).filter_by(
+        id_grupo_fk=id_grupo,
+        id_user_fk=id_usuario_que_invita
+    ).first()
+
+    if not miembro:
+        raise HTTPException(status_code=403, detail="No tienes permiso para invitar a este grupo.")
+
+    # Verificar que el usuario a invitar no esté ya en el grupo
+    ya_miembro = session.query(MiembrosGrupos).filter_by(
+        id_grupo_fk=id_grupo,
+        id_user_fk=id_usuario_invitado
+    ).first()
+
+    if ya_miembro:
+        raise HTTPException(status_code=409, detail="El usuario ya es miembro del grupo.")
+
+    # Agregar al nuevo miembro
+    nuevo_miembro = MiembrosGrupos(
+        id_grupo_fk=id_grupo,
+        id_user_fk=id_usuario_invitado
+    )
+    session.add(nuevo_miembro)
+    session.commit()
+
