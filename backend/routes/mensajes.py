@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from backend.database import db, User, Mensajes
 from backend.controllers.messages import guardar_mensaje_individual, verificar_y_descifrar_mensaje
 from backend.controllers.auth import get_current_user
-from backend.models.message import MessageIndividualResponse, MessageReceived, MessageIndidualRequestSimplified
+from backend.models.message import MessageIndividualResponse, MessageReceived, MessageIndividualRequestSimplified
 from types import SimpleNamespace as Namespace
 
 router = APIRouter()
@@ -11,7 +11,7 @@ router = APIRouter()
 @router.post("/message/{user_destino}")
 def send_individual_message(
     user_destino: str,
-    message_data: MessageIndidualRequestSimplified,
+    message_data: MessageIndividualRequestSimplified,
     algoritmo_hash: str = "sha256",
     user: User = Depends(get_current_user),
 ):
