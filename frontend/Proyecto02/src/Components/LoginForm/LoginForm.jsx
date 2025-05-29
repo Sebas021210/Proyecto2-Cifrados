@@ -1,15 +1,18 @@
 import { useState } from "react";
 import {
+  Box,
   Button,
   TextField,
   Typography,
-  Box,
-  Modal,
   Paper,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
+import Logo from "../../assets/LogIn.png";
 
 function LoginForm() {
-  const [open, setOpen] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -20,206 +23,233 @@ function LoginForm() {
   const [passwordRegister, setPasswordRegister] = useState("");
 
   const handleLogin = () => {
-    console.log("🔐 Simulación de inicio de sesión", { email, password });
     alert("Inicio de sesión simulado ✅");
   };
 
   const handleRegister = () => {
-    console.log("🧾 Simulación de registro", {
-      nombre,
-      apellido,
-      username,
-      email: emailRegister,
-      password: passwordRegister,
-    });
     alert("Usuario registrado (simulado) ✅");
-    setOpen(false);
+    setIsRegistering(false);
   };
 
   return (
     <Box
       sx={{
-        backgroundColor: "#284B63", // Fondo azul oscuro
         minHeight: "100vh",
+        backgroundColor: "#1F1F1F",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
+        px: 2,
       }}
     >
-      {!open && (
+      <Box
+        sx={{
+          display: "flex",
+          width: "95%",
+          maxWidth: "1200px",
+          minHeight: "85vh",
+          borderRadius: 4,
+          overflow: "hidden",
+          boxShadow: "0px 4px 24px rgba(0, 0, 0, 0.5)",
+          backgroundColor: "#2C2C2C", // borde exterior contenedor
+        }}
+      >
+        {/* Panel Izquierdo */}
         <Box
           sx={{
-            width: 360,
+            flex: 1,
+            backgroundColor: "#1F1F1F",
             display: "flex",
             flexDirection: "column",
-            gap: 2,
-            padding: 4,
-            borderRadius: 3,
-            backgroundColor: "#353535",
-            boxShadow: "0px 4px 24px rgba(0, 0, 0, 0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            px: 4,
             color: "#fff",
           }}
         >
-          <Typography variant="h5" align="center">
-            Iniciar Sesión
+          <Typography variant="h4" fontWeight="bold" mb={2}>
+            Proyecto 02
           </Typography>
-
-          <TextField
-            label="Correo electrónico"
-            variant="filled"
-            fullWidth
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            InputProps={{
-              style: { backgroundColor: "#2c2c2c", color: "#fff" },
-            }}
-            InputLabelProps={{ style: { color: "#aaa" } }}
-          />
-
-          <TextField
-            label="Contraseña"
-            type="password"
-            variant="filled"
-            fullWidth
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            InputProps={{
-              style: { backgroundColor: "#2c2c2c", color: "#fff" },
-            }}
-            InputLabelProps={{ style: { color: "#aaa" } }}
-          />
-
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={handleLogin}
+          <Typography variant="h6" sx={{ textAlign: "center", color: "#ccc" }}>
+            Plataforma de Chat Seguro con Firma Digital, Cifrado Avanzado y
+            Blockchain
+          </Typography>
+          <Box
+            component="img"
+            src={Logo}
+            alt="Decoración abstracta"
             sx={{
-              backgroundColor: "#3C6E71",
-              "&:hover": { backgroundColor: "#284B63" },
-              fontWeight: "bold",
-              color: "#fff",
+              width: "60%",
+              maxWidth: "300px",
+              mt: 4,
             }}
-          >
-            INICIAR SESIÓN
-          </Button>
-
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={() => setOpen(true)}
-            sx={{
-              borderColor: "#3C6E71", // azul claro
-              color: "#3C6E71",
-              fontWeight: "bold",
-              "&:hover": {
-                borderColor: "#fff",
-                color: "#fff",
-              },
-            }}
-          >
-            REGISTRARSE
-          </Button>
+          />
         </Box>
-      )}
 
-      <Modal open={open} onClose={() => setOpen(false)}>
-        <Paper
+        {/* Panel Derecho */}
+        <Box
           sx={{
-            width: 420,
-            margin: "auto",
-            marginTop: "10vh",
-            padding: 4,
-            backgroundColor: "#1e1e1e",
-            color: "white",
+            flex: 1,
+            backgroundColor: "#1F1F1F",
             display: "flex",
-            flexDirection: "column",
-            gap: 2,
+            justifyContent: "center",
+            alignItems: "center",
+            p: 4,
           }}
         >
-          <Typography variant="h6" align="center">
-            Crear nuevo usuario
-          </Typography>
-
-          <TextField
-            label="Nombre"
-            variant="filled"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            InputProps={{
-              style: { backgroundColor: "#2c2c2c", color: "#fff" },
-            }}
-            InputLabelProps={{ style: { color: "#aaa" } }}
-          />
-
-          <TextField
-            label="Apellido"
-            variant="filled"
-            value={apellido}
-            onChange={(e) => setApellido(e.target.value)}
-            InputProps={{
-              style: { backgroundColor: "#2c2c2c", color: "#fff" },
-            }}
-            InputLabelProps={{ style: { color: "#aaa" } }}
-          />
-
-          <TextField
-            label="Nombre de usuario"
-            variant="filled"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            InputProps={{
-              style: { backgroundColor: "#2c2c2c", color: "#fff" },
-            }}
-            InputLabelProps={{ style: { color: "#aaa" } }}
-          />
-
-          <TextField
-            label="Correo electrónico"
-            variant="filled"
-            value={emailRegister}
-            onChange={(e) => setEmailRegister(e.target.value)}
-            InputProps={{
-              style: { backgroundColor: "#2c2c2c", color: "#fff" },
-            }}
-            InputLabelProps={{ style: { color: "#aaa" } }}
-          />
-
-          <TextField
-            label="Contraseña"
-            type="password"
-            variant="filled"
-            value={passwordRegister}
-            onChange={(e) => setPasswordRegister(e.target.value)}
-            InputProps={{
-              style: { backgroundColor: "#2c2c2c", color: "#fff" },
-            }}
-            InputLabelProps={{ style: { color: "#aaa" } }}
-          />
-
-          <Button
-            variant="contained"
-            onClick={handleRegister}
+          <Paper
+            elevation={6}
             sx={{
-              backgroundColor: "#FB8C00", // naranja
-              "&:hover": { backgroundColor: "#e67600" },
-              fontWeight: "bold",
+              width: "100%",
+              maxWidth: 500,
+              padding: 4,
+              borderRadius: 4,
+              backgroundColor: "#fff",
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "70vh",
             }}
           >
-            REGISTRARME
-          </Button>
+            <Typography variant="h5" fontWeight="bold" mb={2}>
+              {isRegistering ? "Sign up now" : "Log in"}
+            </Typography>
 
-          <Button
-            onClick={() => setOpen(false)}
-            sx={{
-              color: "#FFC107", // amarillo
-              fontWeight: "bold",
-              "&:hover": { color: "#fff" },
-            }}
-          >
-            CANCELAR
-          </Button>
-        </Paper>
-      </Modal>
+            {isRegistering ? (
+              <>
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <TextField
+                    fullWidth
+                    label="First name"
+                    variant="outlined"
+                    value={nombre}
+                    onChange={(e) => setNombre(e.target.value)}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Last name"
+                    variant="outlined"
+                    value={apellido}
+                    onChange={(e) => setApellido(e.target.value)}
+                  />
+                </Box>
+                <TextField
+                  fullWidth
+                  label="Email address"
+                  variant="outlined"
+                  value={emailRegister}
+                  onChange={(e) => setEmailRegister(e.target.value)}
+                />
+                <TextField
+                  fullWidth
+                  label="Username"
+                  variant="outlined"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+                <TextField
+                  fullWidth
+                  label="Password"
+                  variant="outlined"
+                  type="password"
+                  value={passwordRegister}
+                  onChange={(e) => setPasswordRegister(e.target.value)}
+                />
+
+                <Typography variant="caption" color="text.secondary">
+                  Use 8 or more characters with a mix of letters, numbers &
+                  symbols
+                </Typography>
+
+                <FormControlLabel
+                  control={<Checkbox />}
+                  label={
+                    <Typography variant="body2">
+                      I agree to the <strong>Terms of use</strong> and{" "}
+                      <strong>Privacy Policy</strong>
+                    </Typography>
+                  }
+                />
+
+                <FormControlLabel
+                  control={<Checkbox />}
+                  label={
+                    <Typography variant="body2">
+                      I consent to receive SMS and marketing messages.
+                    </Typography>
+                  }
+                />
+
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handleLogin}
+                  sx={{
+                    backgroundColor: "#C3C3C3",
+                    color: "#000", // texto negro para buen contraste
+                    fontWeight: "bold",
+                    "&:hover": {
+                      backgroundColor: "#B0B0B0", // un poco más oscuro al pasar el mouse
+                    },
+                  }}
+                >
+                  SIGN UP
+                </Button>
+
+                <Typography variant="body2" align="center" sx={{ mt: 2 }}>
+                  Already have an account?{" "}
+                  <Button onClick={() => setIsRegistering(false)}>
+                    Log in
+                  </Button>
+                </Typography>
+              </>
+            ) : (
+              <>
+                <TextField
+                  fullWidth
+                  label="Email address"
+                  variant="outlined"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <TextField
+                  fullWidth
+                  label="Password"
+                  variant="outlined"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handleLogin}
+                  sx={{
+                    backgroundColor: "#C3C3C3",
+                    color: "#000", // texto negro para buen contraste
+                    fontWeight: "bold",
+                    "&:hover": {
+                      backgroundColor: "#B0B0B0", // un poco más oscuro al pasar el mouse
+                    },
+                  }}
+                >
+                  Log in
+                </Button>
+
+                <Typography variant="body2" align="center" sx={{ mt: 2 }}>
+                  Don't have an account?{" "}
+                  <Button onClick={() => setIsRegistering(true)}>
+                    Sign up
+                  </Button>
+                </Typography>
+              </>
+            )}
+          </Paper>
+        </Box>
+      </Box>
     </Box>
   );
 }
