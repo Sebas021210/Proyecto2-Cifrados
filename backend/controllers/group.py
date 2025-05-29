@@ -90,3 +90,33 @@ def obtener_detalles_grupo(session: Session, grupo_id: int, user_id: int) -> Gru
         raise HTTPException(status_code=404, detail="Grupo no encontrado o acceso denegado")
 
     return grupo
+
+def invitar_usuario_a_grupo(
+    session: Session, id_grupo: int, id_usuario_invitado: int, id_usuario_que_invita: int
+) -> None:
+    # Verificar que quien invita es miembro del grupo
+    miembro = session.query(MiembrosGrupos).filter_by(
+        id_grupo_fk=id_grupo,
+        id_user_fk=id_usuario_que_invita
+    ).first()
+
+    if not miembro:
+        raise HTTPException(status_code=403, detail="No tienes permiso para invitar a este grupo.")
+
+    # Verificar que el usuario a invitar no esté ya en el grupo
+    ya_miembro = session.query(MiembrosGrupos).filter_by(
+        id_grupo_fk=id_grupo,
+        id_user_fk=id_usuario_invitado
+    ).first()
+
+    if ya_miembro:
+        raise HTTPException(status_code=409, detail="El usuario ya es miembro del grupo.")
+
+    # Agregar al nuevo miembro
+    nuevo_miembro = MiembrosGrupos(
+        id_grupo_fk=id_grupo,
+        id_user_fk=id_usuario_invitado
+    )
+    session.add(nuevo_miembro)
+    session.commit()
+

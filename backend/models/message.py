@@ -72,3 +72,6 @@ class GrupoDetalleResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+class InvitarUsuarioRequest(BaseModel):
+    id_usuario: int

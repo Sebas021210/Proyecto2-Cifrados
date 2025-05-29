@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
 from backend.controllers.auth import get_current_user
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse
-from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro, obtener_detalles_grupo
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, InvitarUsuarioRequest
+from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro, obtener_detalles_grupo, invitar_usuario_a_grupo
 from backend.database import get_db, User
 from sqlalchemy.orm import Session
 from typing import List
@@ -83,3 +83,19 @@ def obtener_grupo(
         tipo_cifrado=grupo.tipo_cifrado,
         miembros=miembros
     )
+
+@router.post("/invite/{grupo_id}", status_code=200)
+def invitar_usuario(
+    grupo_id: int,
+    body: InvitarUsuarioRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db)]
+):
+    invitar_usuario_a_grupo(
+        session=session,
+        id_grupo=grupo_id,
+        id_usuario_invitado=body.id_usuario,
+        id_usuario_que_invita=user.id_pk
+    )
+    return {"mensaje": "Usuario invitado correctamente al grupo."}
+
