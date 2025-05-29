@@ -1,101 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
-from sqlalchemy.exc import IntegrityError
-from backend.models.responses import SuccessfulLoginResponse, SuccessfulRegisterResponse
-from backend.models.user import UserBase, LoginRequest
 from backend.database import db, User, Mensajes
-from backend.controllers.auth import get_current_user
-from backend.controllers.messages import sign_message, verify_signature, generate_ecc_key_pair, generate_aes_key, calcular_hash_mensaje
-from backend.controllers.messages import crear_grupo, agregar_miembro
 from backend.controllers.messages import guardar_mensaje_individual
-from backend.models.message import FirmaRequest, VerificacionRequest, MensajeSolo
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse
+from backend.controllers.auth import get_current_user
 from backend.models.message import MessageIndidualRequest, MessageIndividualResponse, MessageReceived
-import base64
 from types import SimpleNamespace as Namespace
 
 router = APIRouter()
-
-# region: Mensajes y Firmas
-
-@router.post("/firmar")
-def firmar(request: FirmaRequest):
-    signature = sign_message(request.private_key, request.message)
-    return {"firma": signature}
-
-@router.post("/verificar")
-def verificar(request: VerificacionRequest):
-    is_valid = verify_signature(request.public_key, request.message, request.signature)
-    return {"valida": is_valid}
-
-@router.get("/generar-claves")
-def generar_todas_las_claves():
-    aes_key = generate_aes_key()
-    ecc_keys = generate_ecc_key_pair()
-
-    return {
-        "aes_key_base64": base64.b64encode(aes_key).decode(),
-        "ecc": {
-            "private_key": ecc_keys["private_key"],
-            "public_key": ecc_keys["public_key"]
-        }
-    }
-
-@router.post("/hash")
-def obtener_hash(request: MensajeSolo, algoritmo: str = "sha256"):
-    try:
-        digest = calcular_hash_mensaje(request.message, algoritmo)
-        return {"hash": digest, "algoritmo": algoritmo}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-# endregion
-# region: Grupos y Miembros
-
-@router.post("/grupos", response_model=GrupoCreateResponse, status_code=201)
-async def crear_grupo(request: GrupoCreateRequest, user: UserBase = Depends(get_current_user)):
-    try:
-        grupo = crear_grupo(
-            nombre=request.nombre,
-            llave_publica=request.llave_publica,
-            tipo_cifrado=request.tipo_cifrado,
-        )
-    except IntegrityError:
-        raise HTTPException(status_code=409, detail="Ya existe un grupo con este nombre o llave.")
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creando grupo: {e}")
-
-    return GrupoCreateResponse(
-        id_pk=grupo.id_pk,
-        nombre_de_grupo=grupo.nombre_de_grupo,
-        tipo_cifrado=grupo.tipo_cifrado,
-        mensaje="Grupo creado con éxito."
-    )
-
-@router.post("/grupos/miembros", response_model=MiembroAgregarResponse, status_code=201)
-async def agregar_miembro(request: MiembroAgregarRequest , user: UserBase = Depends(get_current_user)):
-    try:
-        miembro = agregar_miembro(
-            id_grupo=request.id_grupo,
-            id_usuario=request.id_usuario,
-        )
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-    except IntegrityError:
-        raise HTTPException(status_code=409, detail="Error de integridad en la base de datos.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error agregando miembro: {e}")
-
-    return MiembroAgregarResponse(
-        id_pk=miembro.id_pk,
-        id_grupo_fk=miembro.id_grupo_fk,
-        id_user_fk=miembro.id_user_fk,
-        mensaje="Miembro agregado exitosamente al grupo."
-    )
-
-# endregion
-# region: Mensajes Individuales
 
 # Route to send individual messages
 @router.post("/message/{user_destino}")
@@ -169,5 +79,3 @@ def get_sent_messages(user: User = Depends(get_current_user)):
         )
 
     return message_responses
-
-# endregion
