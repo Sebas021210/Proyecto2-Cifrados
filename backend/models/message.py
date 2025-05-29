@@ -63,3 +63,12 @@ class MessageReceived(BaseModel):
 
     class Config:
         orm_mode = True
+
+class GrupoDetalleResponse(BaseModel):
+    id_pk: int
+    nombre_de_grupo: str
+    tipo_cifrado: str
+    miembros: list[int]  # O lista de objetos si quieres más detalle
+
+    class Config:
+        orm_mode = True

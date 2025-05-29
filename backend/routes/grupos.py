@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
 from backend.controllers.auth import get_current_user
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem
-from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro
-from backend.database import get_db
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse
+from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro, obtener_detalles_grupo
+from backend.database import get_db, User
 from sqlalchemy.orm import Session
 from typing import List
+from typing import Annotated
 
 router = APIRouter()
 
@@ -63,3 +64,22 @@ def obtener_grupos(
         return grupos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener grupos: {e}")
+
+@router.get("/GroupDetails/{grupo_id}", response_model=GrupoDetalleResponse)
+def obtener_grupo(
+    grupo_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db)]
+):
+    grupo = obtener_detalles_grupo(session, grupo_id, user.id_pk)
+
+    miembros = [
+        miembro.id_user_fk for miembro in grupo.miembros_grupo
+    ]
+
+    return GrupoDetalleResponse(
+        id_pk=grupo.id_pk,
+        nombre_de_grupo=grupo.nombre_de_grupo,
+        tipo_cifrado=grupo.tipo_cifrado,
+        miembros=miembros
+    )

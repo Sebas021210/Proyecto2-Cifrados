@@ -6,6 +6,7 @@ from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
 from sqlalchemy.orm import Session
 from backend.database import db, User, Mensajes, Blockchain
 from typing import List
+from fastapi import Depends, HTTPException
 
 def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
     with db_instance.write() as session:
@@ -76,3 +77,16 @@ def listar_grupos(session: Session, user_id: int) -> List[Grupos]:
         .all()
 
     return grupos
+
+def obtener_detalles_grupo(session: Session, grupo_id: int, user_id: int) -> Grupos:
+    grupo = (
+        session.query(Grupos)
+        .join(MiembrosGrupos)
+        .filter(Grupos.id_pk == grupo_id, MiembrosGrupos.id_user_fk == user_id)
+        .first()
+    )
+
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado o acceso denegado")
+
+    return grupo
