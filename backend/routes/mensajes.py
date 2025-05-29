@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from backend.database import db, User, Mensajes
-from backend.controllers.messages import guardar_mensaje_individual
+from backend.controllers.messages import guardar_mensaje_individual, verificar_y_descifrar_mensaje
 from backend.controllers.auth import get_current_user
-from backend.models.message import MessageIndidualRequest, MessageIndividualResponse, MessageReceived
+from backend.models.message import MessageIndividualResponse, MessageReceived, MessageIndividualRequestSimplified
 from types import SimpleNamespace as Namespace
 
 router = APIRouter()
@@ -11,7 +11,7 @@ router = APIRouter()
 @router.post("/message/{user_destino}")
 def send_individual_message(
     user_destino: str,
-    message_data: MessageIndidualRequest,
+    message_data: MessageIndividualRequestSimplified,
     algoritmo_hash: str = "sha256",
     user: User = Depends(get_current_user),
 ):
@@ -25,9 +25,7 @@ def send_individual_message(
                 id_remitente=user.id_pk,
                 id_receptor=receptor.id_pk,
                 mensaje=message_data.mensaje,
-                firma=message_data.firma,
-                hash_mensaje=message_data.hash_mensaje,
-                clave_aes_cifrada=message_data.clave_aes_cifrada
+                clave_privada_remitente=message_data.clave_privada
             ),
             algoritmo_hash=algoritmo_hash
         )
@@ -42,14 +40,32 @@ def send_individual_message(
 
 # Route to get individual messages
 @router.get("/message/received", response_model=list[MessageReceived])
-def get_received_messages(user: User = Depends(get_current_user)):
+def get_received_messages(
+    user: User = Depends(get_current_user),
+    clave_privada: str = Query(..., description="Clave privada en formato PEM del receptor"),
+    algoritmo_hash: str = "sha256"
+):
     messages = db.query(Mensajes).filter(Mensajes.id_receptor == user.id_pk).order_by(Mensajes.timestamp.desc()).all()
     message_responses = []
+
     for msg in messages:
+        try:
+            mensaje_descifrado = verificar_y_descifrar_mensaje(
+                mensaje_cifrado=msg.mensaje,
+                clave_aes_cifrada=msg.clave_aes_cifrada,
+                firma=msg.firma,
+                hash_mensaje=msg.hash_mensaje,
+                clave_privada_receptor_pem=clave_privada,
+                clave_publica_remitente_pem=msg.remitente.public_key,
+                algoritmo_hash=algoritmo_hash
+            )
+        except Exception as e:
+            mensaje_descifrado = f"ERROR: {str(e)}"
+
         message_responses.append(
             MessageReceived(
                 id=msg.id,
-                message=msg.mensaje,
+                message=mensaje_descifrado,
                 firma=msg.firma,
                 hash_mensaje=msg.hash_mensaje,
                 clave_aes_cifrada=msg.clave_aes_cifrada,
@@ -62,14 +78,32 @@ def get_received_messages(user: User = Depends(get_current_user)):
 
 # Route to  get individual messages
 @router.get("/message/sent", response_model=list[MessageReceived])
-def get_sent_messages(user: User = Depends(get_current_user)):
+def get_sent_messages(
+    user: User = Depends(get_current_user),
+    clave_privada: str = Query(..., description="Clave privada en formato PEM del remitente"),
+    algoritmo_hash: str = "sha256"
+):
     messages = db.query(Mensajes).filter(Mensajes.id_remitente == user.id_pk).order_by(Mensajes.timestamp.desc()).all()
     message_responses = []
+
     for msg in messages:
+        try:
+            mensaje_descifrado = verificar_y_descifrar_mensaje(
+                mensaje_cifrado=msg.mensaje,
+                clave_aes_cifrada=msg.clave_aes_cifrada,
+                firma=msg.firma,
+                hash_mensaje=msg.hash_mensaje,
+                clave_privada_receptor_pem=clave_privada,
+                clave_publica_remitente_pem=user.public_key,
+                algoritmo_hash=algoritmo_hash
+            )
+        except Exception as e:
+            mensaje_descifrado = f"ERROR: {str(e)}"
+
         message_responses.append(
             MessageReceived(
                 id=msg.id,
-                message=msg.mensaje,
+                message=mensaje_descifrado,
                 firma=msg.firma,
                 hash_mensaje=msg.hash_mensaje,
                 clave_aes_cifrada=msg.clave_aes_cifrada,
