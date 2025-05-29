@@ -85,6 +85,8 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
             }
         })
 
+        print(f"cookie: {refresh_token}")
+
         # Guardamos el refresh_token en una cookie HttpOnly
         response.set_cookie(
             key="refresh_token",
@@ -106,6 +108,7 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
 
 @router.post("/refresh")
 async def refresh_token(refresh_token: str = Cookie(None), db = Depends(get_db)):
+    print(f"Refresh token received: {refresh_token}")
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Missing refresh token")
 
@@ -119,11 +122,11 @@ async def refresh_token(refresh_token: str = Cookie(None), db = Depends(get_db))
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
 
-        new_access_token = create_access_token(data={"sub": user.email})
+        new_access_token = create_access_token(data={"sub": user.correo})
         return {"access_token": new_access_token, "token_type": "bearer"}
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
 
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid refresh token. Error: {str(e)}")
