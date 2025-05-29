@@ -44,6 +44,10 @@ class MessageIndividualResponse(BaseModel):
     message: str
     timestamp: datetime
 
+class MessageIndidualRequestSimplified(BaseModel):
+    mensaje: str
+    clave_privada: str
+
 class MessageReceived(BaseModel):
     id: int
     message: str
