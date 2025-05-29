@@ -5,6 +5,7 @@ from backend.database.schemas import MiembrosGrupos, Grupos, User
 from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
 from sqlalchemy.orm import Session
 from backend.database import db, User, Mensajes, Blockchain
+from typing import List
 
 def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
     with db_instance.write() as session:
@@ -63,3 +64,15 @@ def crear_grupo(session: Session, nombre: str, tipo_cifrado: str) -> Grupos:
         raise ValueError("Error: Ya existe un grupo con este nombre.")
 
     return grupo
+
+
+def listar_grupos(session: Session, user_id: int) -> List[Grupos]:
+    """
+    Retorna los grupos a los que pertenece el usuario especificado.
+    """
+    grupos = session.query(Grupos) \
+        .join(MiembrosGrupos) \
+        .filter(MiembrosGrupos.id_user_fk == user_id) \
+        .all()
+
+    return grupos

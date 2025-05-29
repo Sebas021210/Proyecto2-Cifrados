@@ -2,11 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
 from backend.controllers.auth import get_current_user
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem
+from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro
+from backend.database import get_db
+from sqlalchemy.orm import Session
+from typing import List
 
 router = APIRouter()
 
-@router.post("/grupos", response_model=GrupoCreateResponse, status_code=201)
+@router.post("/newGroup", response_model=GrupoCreateResponse, status_code=201)
 async def crear_grupo(request: GrupoCreateRequest, user: UserBase = Depends(get_current_user)):
     try:
         grupo = crear_grupo(
@@ -28,7 +32,7 @@ async def crear_grupo(request: GrupoCreateRequest, user: UserBase = Depends(get_
         mensaje="Grupo creado con éxito."
     )
 
-@router.post("/grupos/miembros", response_model=MiembroAgregarResponse, status_code=201)
+@router.post("/miembros", response_model=MiembroAgregarResponse, status_code=201)
 async def agregar_miembro(request: MiembroAgregarRequest , user: UserBase = Depends(get_current_user)):
     try:
         miembro = agregar_miembro(
@@ -48,3 +52,14 @@ async def agregar_miembro(request: MiembroAgregarRequest , user: UserBase = Depe
         id_user_fk=miembro.id_user_fk,
         mensaje="Miembro agregado exitosamente al grupo."
     )
+
+@router.get("/getGroups", response_model=List[GrupoListItem])
+def obtener_grupos(
+    session: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        grupos = listar_grupos(session, current_user["user_id"])
+        return grupos
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener grupos: {e}")

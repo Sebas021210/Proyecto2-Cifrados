@@ -24,6 +24,14 @@ class GrupoCreateResponse(BaseModel):
     tipo_cifrado: str
     mensaje: str
 
+class GrupoListItem(BaseModel):
+    id_pk: int
+    nombre_de_grupo: str
+    tipo_cifrado: str
+
+    class Config:
+        orm_mode = True
+
 class MiembroAgregarRequest(BaseModel):
     id_grupo: int
     id_usuario: int

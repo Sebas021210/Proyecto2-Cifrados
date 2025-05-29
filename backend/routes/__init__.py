@@ -7,5 +7,5 @@ __all__ = [
     "auth_router",
     "messages_router",
     "grupos_router",
-    firmas_router
+    "firmas_router"
 ]
