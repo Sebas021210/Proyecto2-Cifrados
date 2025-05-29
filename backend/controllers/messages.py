@@ -1,5 +1,5 @@
 from backend.database import db, User, Mensajes, Blockchain
-from backend.controllers.keys import calcular_hash_mensaje, verify_signature
+from backend.controllers.firma import calcular_hash_mensaje, verify_signature
 import hashlib
 from datetime import datetime
 import os
