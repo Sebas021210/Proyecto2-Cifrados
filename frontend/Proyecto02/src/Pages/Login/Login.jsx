@@ -7,7 +7,7 @@ function Login() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        height: "90vh", // Altura completa de la ventana
+        height: "100vh", // Altura completa de la ventana
       }}
     >
       <LoginForm />

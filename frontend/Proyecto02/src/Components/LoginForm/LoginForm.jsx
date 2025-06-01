@@ -8,6 +8,7 @@ import {
   FormControlLabel,
   Checkbox,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import Logo from "../../assets/LogIn.png";
 
 function LoginForm() {
@@ -21,9 +22,11 @@ function LoginForm() {
   const [username, setUsername] = useState("");
   const [emailRegister, setEmailRegister] = useState("");
   const [passwordRegister, setPasswordRegister] = useState("");
+  const navigate = useNavigate();
 
   const handleLogin = () => {
     alert("Inicio de sesión simulado ✅");
+    navigate("/home"); // redirige a la ruta /home
   };
 
   const handleRegister = () => {

@@ -1,0 +1,286 @@
+import { useState } from "react";
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Tabs,
+  Tab,
+  Paper,
+  Divider,
+  Avatar,
+  InputBase,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+
+function ChatPage() {
+  const [tab, setTab] = useState(0);
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const handleSend = () => {
+    if (message.trim()) {
+      setMessages([...messages, message]);
+      setMessage("");
+    }
+  };
+
+  const users = ["Usuario 1", "Usuario 2", "Usuario 3"];
+  const filteredUsers = users.filter((user) =>
+    user.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <Box
+      sx={{
+        height: "80vh",
+        width: "150vh",
+        marginLeft: "10vh",
+        marginTop: "5vh",
+        backgroundColor: "#1F1F1F",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 3,
+        p: 3,
+        fontFamily: "'Segoe UI', sans-serif",
+      }}
+    >
+      {/* PANEL IZQUIERDO: Acciones + Usuarios/Grupos */}
+      <Paper
+        elevation={6}
+        sx={{
+          width: "300px",
+          height: "100%",
+          backgroundColor: "#2C2C2C",
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: 4,
+          color: "#fff",
+          overflow: "hidden",
+        }}
+      >
+        {/* ACCIONES */}
+        <Box
+          sx={{
+            p: 2,
+            borderBottom: "1px solid #444",
+            backgroundColor: "#1F1F1F",
+          }}
+        >
+          <Typography
+            variant="subtitle1"
+            fontWeight="bold"
+            mb={1}
+            textAlign="center"
+          >
+            Acciones
+          </Typography>
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{
+              backgroundColor: "white",
+              color: "#000",
+              fontWeight: "bold",
+              borderRadius: 2,
+              textTransform: "none",
+              mb: 1,
+              "&:hover": { backgroundColor: "#B0B0B0" },
+            }}
+          >
+            Crear llaves ECC
+          </Button>
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{
+              backgroundColor: "white",
+              color: "#000",
+              fontWeight: "bold",
+              borderRadius: 2,
+              textTransform: "none",
+              "&:hover": { backgroundColor: "#B0B0B0" },
+            }}
+          >
+            Crear grupo nuevo
+          </Button>
+        </Box>
+
+        {/* TABS */}
+        <Tabs
+          value={tab}
+          onChange={(e, newVal) => setTab(newVal)}
+          textColor="inherit"
+          TabIndicatorProps={{
+            style: {
+              backgroundColor: "#fff",
+            },
+          }}
+        >
+          <Tab label="Usuarios" />
+          <Tab label="Grupos" />
+        </Tabs>
+
+        <Divider sx={{ backgroundColor: "#444" }} />
+
+        {/* BUSCADOR */}
+        {tab === 0 && (
+          <Box sx={{ px: 2, py: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                backgroundColor: "#1F1F1F",
+                borderRadius: 2,
+                px: 2,
+                py: 1,
+              }}
+            >
+              <SearchIcon sx={{ color: "#888" }} />
+              <InputBase
+                placeholder="Buscar usuario..."
+                sx={{ ml: 1, flex: 1, color: "#fff" }}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </Box>
+          </Box>
+        )}
+
+        {/* LISTADO DE USUARIOS / GRUPOS */}
+        <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 1 }}>
+          {(tab === 0 ? filteredUsers : ["Grupo A", "Grupo B", "Grupo C"]).map(
+            (item, i) => (
+              <Box
+                key={i}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  mb: 2,
+                  gap: 1,
+                }}
+              >
+                <Avatar src={`https://i.pravatar.cc/150?img=${i + 1}`} />
+                <Typography>{item}</Typography>
+              </Box>
+            )
+          )}
+        </Box>
+      </Paper>
+
+      {/* PANEL DE CHAT */}
+      <Paper
+        elevation={6}
+        sx={{
+          flex: 1,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: 4,
+          overflow: "hidden",
+        }}
+      >
+        {/* HEADER */}
+        <Box
+          sx={{
+            backgroundColor: "#1F1F1F",
+            padding: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            color: "#fff",
+            borderBottom: "1px solid #444",
+          }}
+        >
+          <Avatar src="https://i.pravatar.cc/300" />
+          <Typography variant="subtitle1" fontWeight="bold">
+            Chat con Usuario 1
+          </Typography>
+        </Box>
+
+        {/* MENSAJES */}
+        <Box
+          sx={{
+            flex: 1,
+            overflowY: "auto",
+            p: 3,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            backgroundColor: "#fff",
+          }}
+        >
+          {messages.length === 0 ? (
+            <Typography color="#888" textAlign="center">
+              No hay mensajes aún
+            </Typography>
+          ) : (
+            messages.map((msg, i) => (
+              <Box
+                key={i}
+                sx={{
+                  display: "flex",
+                  justifyContent: i % 2 === 0 ? "flex-start" : "flex-end",
+                }}
+              >
+                <Paper
+                  sx={{
+                    p: 1.5,
+                    backgroundColor: i % 2 === 0 ? "#E0E0E0" : "#C3C3C3",
+                    color: "#000",
+                    borderRadius: 4,
+                    maxWidth: "70%",
+                  }}
+                >
+                  {msg}
+                </Paper>
+              </Box>
+            ))
+          )}
+        </Box>
+
+        {/* INPUT MENSAJE */}
+        <Box
+          sx={{
+            p: 2,
+            borderTop: "1px solid #ccc",
+            display: "flex",
+            gap: 2,
+            backgroundColor: "#F5F5F5",
+          }}
+        >
+          <TextField
+            fullWidth
+            variant="outlined"
+            placeholder="Escribe un mensaje..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            InputProps={{
+              style: {
+                backgroundColor: "#fff",
+                borderRadius: 10,
+              },
+            }}
+          />
+          <Button
+            variant="contained"
+            onClick={handleSend}
+            sx={{
+              backgroundColor: "#1F1F1F",
+              color: "white",
+              fontWeight: "bold",
+              borderRadius: 2,
+              "&:hover": { backgroundColor: "#B0B0B0" },
+            }}
+          >
+            ENVIAR
+          </Button>
+        </Box>
+      </Paper>
+    </Box>
+  );
+}
+
+export default ChatPage;
