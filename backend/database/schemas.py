@@ -12,9 +12,9 @@ class User(Base):
     id_pk = Column(Integer, primary_key=True, autoincrement=True)
     public_key = Column(String, nullable=False)
     correo = Column(String, nullable=False)
-    contraseña = Column(String, nullable=False)
+    contraseña = Column(String, nullable=True)
     nombre = Column(String, nullable=False)
-    hash = Column(String, nullable=False)
+    hash = Column(String, nullable=True)
 
 # Tabla Blockchain general (única)
 class Blockchain(Base):
