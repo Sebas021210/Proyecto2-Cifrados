@@ -12,7 +12,7 @@ from backend.controllers.keys import generate_ecc_keys
 from backend.database import User, get_db
 from backend.models.responses import SuccessfulRegisterResponse
 from backend.models.user import LoginRequest, RegisterRequest
-from backend.utils.auth import create_access_token, create_refresh_token, SECRET_KEY, ALGORITHM
+from backend.utils.auth import create_access_token, create_refresh_token, SECRET_KEY, ALGORITHM, hash_password
 
 router = APIRouter()
 
@@ -27,7 +27,7 @@ async def login(login_request: LoginRequest, db=Depends(get_db)):
     """
     user = db.query(User).filter(User.correo == login_request.email).first()
 
-    if not user or not user.contraseña or user.contraseña != login_request.password:
+    if not user or not user.contraseña or user.contraseña != hash_password(login_request.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(data={"sub": user.correo}, expires_delta=timedelta(minutes=15))
@@ -70,7 +70,7 @@ async def register(register_request: RegisterRequest, db=Depends(get_db)):
 
     new_user = User(
         correo=str(register_request.email),
-        contraseña=register_request.password,
+        contraseña=hash_password(register_request.password),
         public_key=public,
         nombre=register_request.name,
         hash=None,
