@@ -1,25 +1,20 @@
 import hashlib
-from backend.database import db, User
-import jwt
-from jwt.exceptions import ExpiredSignatureError, DecodeError
-from fastapi import HTTPException, Header, Depends
-
-SECRET_KEY = "clave_secreta_super_segura"
-
-
-"""
------------------------ JWT -----------------------
-
-"""
-SECRET_KEY = "clave_secreta_super_segura"
-
 from datetime import datetime, timedelta, timezone
+
+import jwt
+from fastapi import HTTPException, Header
+from jwt.exceptions import ExpiredSignatureError, DecodeError
+
+from backend.database import db, User
+
+SECRET_KEY = "clave_secreta_super_segura"
+
 
 def _generate_jwt_token(user: User) -> str:
     """Genera un JWT con el ID del usuario y una expiración de 1 hora."""
     now = datetime.now(timezone.utc)  # <-- UTC explícito
     payload = {
-        "user_id": user.email,
+        "user_id": user.correo,
         "exp": int((now + timedelta(hours=1)).timestamp()),
         "iat": int(now.timestamp()),
     }
@@ -74,7 +69,7 @@ def register(email: str, password: str) -> User:
     """Crea un nuevo usuario con la contraseña hasheada usando SHA-256."""
     hashed_password = _hash_password(password)
     with db.write() as session:
-        user = User(email=email, password=hashed_password)
+        user = User(correo=email, contraseña=password)
         session.add(user)
         session.commit()
         return user

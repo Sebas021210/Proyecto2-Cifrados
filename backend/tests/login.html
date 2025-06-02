@@ -9,9 +9,8 @@
   <button onclick="startLogin()">Login con Google</button>
 
   <script>
-    async function startLogin() {
-      // Redirige al backend para iniciar login
-      window.location.href = 'http://localhost:8000/auth/login/google';  // Cambia el puerto si es necesario
+    function startLogin() {
+      window.location.href = 'http://localhost:8000/auth/login';
     }
   </script>
 </body>

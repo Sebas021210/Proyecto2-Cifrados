@@ -5,5 +5,5 @@ class SuccessfulLoginResponse(BaseModel):
     jwt_token: str
 
 class SuccessfulRegisterResponse(BaseModel):
-    email: str
     message: str
+    private_key: str

@@ -24,6 +24,14 @@ class GrupoCreateResponse(BaseModel):
     tipo_cifrado: str
     mensaje: str
 
+class GrupoListItem(BaseModel):
+    id_pk: int
+    nombre_de_grupo: str
+    tipo_cifrado: str
+
+    class Config:
+        orm_mode = True
+
 class MiembroAgregarRequest(BaseModel):
     id_grupo: int
     id_usuario: int
@@ -44,6 +52,10 @@ class MessageIndividualResponse(BaseModel):
     message: str
     timestamp: datetime
 
+class MessageIndividualRequestSimplified(BaseModel):
+    mensaje: str
+    clave_privada: str
+
 class MessageReceived(BaseModel):
     id: int
     message: str
@@ -55,3 +67,15 @@ class MessageReceived(BaseModel):
 
     class Config:
         orm_mode = True
+
+class GrupoDetalleResponse(BaseModel):
+    id_pk: int
+    nombre_de_grupo: str
+    tipo_cifrado: str
+    miembros: list[int]  # O lista de objetos si quieres más detalle
+
+    class Config:
+        orm_mode = True
+
+class InvitarUsuarioRequest(BaseModel):
+    id_usuario: int
