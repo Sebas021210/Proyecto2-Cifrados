@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bienvenido</title>
+</head>
+<body>
+  <h1>Bienvenido</h1>
+  <p>Ya estás autenticado.</p>
+  <button onclick="getProtectedData()">Cargar datos protegidos</button>
+  <button onclick="refreshToken()">Refrescar token</button>
+
+  <script>
+    let accessToken = null;
+
+    async function getProtectedData() {
+      if (!accessToken) {
+        alert("No hay access token. Refresca primero.");
+        return;
+      }
+
+      const response = await fetch('http://localhost:8000/protected', {
+        headers: {
+          'Authorization': 'Bearer ' + accessToken
+        }
+      });
+
+      const data = await response.json();
+      alert(JSON.stringify(data));
+    }
+
+    async function refreshToken() {
+      const response = await fetch('http://localhost:8000/auth/refresh', {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        alert("No se pudo refrescar el token");
+        return;
+      }
+
+      const result = await response.json();
+      accessToken = result.access_token;
+      alert("Token actualizado:\n" + accessToken);
+    }
+  </script>
+</body>
+</html>
