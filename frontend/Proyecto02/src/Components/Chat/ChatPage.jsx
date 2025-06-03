@@ -12,12 +12,20 @@ import {
   InputBase,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import { useNavigate } from "react-router-dom";
 
 function ChatPage() {
   const [tab, setTab] = useState(0);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    navigate("/", { replace: true }); // redirige al login y borra el historial
+  };
 
   const handleSend = () => {
     if (message.trim()) {
@@ -101,10 +109,26 @@ function ChatPage() {
               fontWeight: "bold",
               borderRadius: 2,
               textTransform: "none",
+              mb: 1,
               "&:hover": { backgroundColor: "#B0B0B0" },
             }}
           >
             Crear grupo nuevo
+          </Button>
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleLogout}
+            sx={{
+              backgroundColor: "white",
+              color: "#000",
+              fontWeight: "bold",
+              borderRadius: 2,
+              textTransform: "none",
+              "&:hover": { backgroundColor: "#B0B0B0" },
+            }}
+          >
+            Log Out
           </Button>
         </Box>
 

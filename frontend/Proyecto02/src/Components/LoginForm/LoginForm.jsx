@@ -10,9 +10,12 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import Logo from "../../assets/LogIn.png";
+import axios from "axios";
+import { useEffect } from "react";
 
 function LoginForm() {
   const [isRegistering, setIsRegistering] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,14 +27,53 @@ function LoginForm() {
   const [passwordRegister, setPasswordRegister] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    alert("Inicio de sesión simulado ✅");
-    navigate("/home"); // redirige a la ruta /home
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      navigate("/home", { replace: true });
+    }
+  }, []);
+
+  const API_URL = "http://localhost:8000"; // cambia si es otro host/puerto
+
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post(`${API_URL}/auth/login`, {
+        email,
+        password,
+      });
+
+      const token = response.data.access_token;
+      localStorage.setItem("access_token", token);
+
+      navigate("/home");
+    } catch (error) {
+      console.error("Error en login:", error.response?.data || error.message);
+      alert("Contraseña o correo incorrecto");
+    }
   };
 
-  const handleRegister = () => {
-    alert("Usuario registrado (simulado) ✅");
-    setIsRegistering(false);
+  const handleRegister = async () => {
+    try {
+      const fullName = `${nombre} ${apellido}`;
+      const response = await axios.post(`${API_URL}/auth/register`, {
+        email: emailRegister,
+        password: passwordRegister,
+        name: fullName,
+      });
+      setIsRegistering(false);
+    } catch (error) {
+      console.error(
+        "Error en registro:",
+        error.response?.data || error.message
+      );
+      alert("Registro fallido ❌");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    navigate("/", { replace: true }); // esto borra el historial anterior
   };
 
   return (
@@ -167,7 +209,12 @@ function LoginForm() {
                 </Typography>
 
                 <FormControlLabel
-                  control={<Checkbox />}
+                  control={
+                    <Checkbox
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                    />
+                  }
                   label={
                     <Typography variant="body2">
                       I agree to the <strong>Terms of use</strong> and{" "}
@@ -188,7 +235,10 @@ function LoginForm() {
                 <Button
                   fullWidth
                   variant="contained"
-                  onClick={handleLogin}
+                  disabled={
+                    !nombre || !apellido || !emailRegister || !passwordRegister
+                  }
+                  onClick={handleRegister}
                   sx={{
                     backgroundColor: "#C3C3C3",
                     color: "#000", // texto negro para buen contraste
@@ -229,6 +279,7 @@ function LoginForm() {
                 <Button
                   fullWidth
                   variant="contained"
+                  disabled={!email || !password}
                   onClick={handleLogin}
                   sx={{
                     backgroundColor: "#C3C3C3",
@@ -240,6 +291,24 @@ function LoginForm() {
                   }}
                 >
                   Log in
+                </Button>
+
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  onClick={() => {
+                    window.location.href =
+                      "http://localhost:8000/auth/login/google"; // cambia si tu backend está en otro host
+                  }}
+                  sx={{
+                    borderColor: "#000",
+                    color: "#000",
+                    fontWeight: "bold",
+                    textTransform: "none",
+                    mt: 2,
+                  }}
+                >
+                  Sign in with Google
                 </Button>
 
                 <Typography variant="body2" align="center" sx={{ mt: 2 }}>

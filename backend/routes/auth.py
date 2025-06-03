@@ -103,6 +103,9 @@ async def login_google(request: Request):
 
 import traceback
 
+from urllib.parse import urlencode
+from fastapi.responses import RedirectResponse
+
 @router.get("/callback")
 async def auth_callback(code: str, request: Request, db=Depends(get_db)):
     try:
@@ -136,44 +139,48 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
                 correo=email,
                 public_key=public,
                 hash=None,
-                contraseña=None,  # No password needed for OAuth users
+                contraseña=None,
                 nombre=name,
             )
             db.add(user)
             db.commit()
             db.refresh(user)
 
+
         access_token = create_access_token(data={"sub": user.correo}, expires_delta=timedelta(minutes=15))
         refresh_token = create_refresh_token(data={"sub": user.correo}, expires_delta=timedelta(days=7))
 
-        response = JSONResponse(content={
+
+        frontend_callback_url = "http://localhost:5173/auth/callback" 
+        query_params = urlencode({
             "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "name": user.nombre,
-                "email": user.correo
-            }
+            "name": user.nombre,
+            "email": user.correo,
         })
 
-        print(f"cookie: {refresh_token}")
 
-        # Guardamos el refresh_token en una cookie HttpOnly
-        response.set_cookie(
+        redirect_url = f"{frontend_callback_url}?{query_params}"
+
+        redirect_response = RedirectResponse(url=redirect_url)
+
+
+        redirect_response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=False,  # True en producción con HTTPS
+            secure=False,
             samesite="lax",
             max_age=7 * 24 * 60 * 60,
             path="/auth/refresh"
         )
 
-        return response
+        return redirect_response
 
     except Exception as e:
         print("❌ Error en /callback:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
 
 @router.post("/refresh")
