@@ -12,7 +12,7 @@ from backend.controllers.keys import generate_ecc_keys
 from backend.database import User, get_db
 from backend.models.responses import SuccessfulRegisterResponse
 from backend.models.user import LoginRequest, RegisterRequest
-from backend.utils.auth import create_access_token, create_refresh_token, SECRET_KEY, ALGORITHM, hash_password
+from backend.utils.auth import create_access_token, create_refresh_token, SECRET_KEY, ALGORITHM, hash_password, get_current_user
 
 router = APIRouter()
 
@@ -200,3 +200,11 @@ async def refresh_token(refresh_token: str = Cookie(None), db = Depends(get_db))
 
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid refresh token. Error: {str(e)}")
+
+
+@router.get("/test")
+async def test_auth(user = Depends(get_current_user)):
+    """
+    Endpoint de prueba para verificar la autenticación.
+    """
+    return {"message": "Autenticación exitosa", "user": {"email": user.correo, "name": user.nombre}}

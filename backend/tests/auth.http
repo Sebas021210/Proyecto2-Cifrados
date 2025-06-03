@@ -1,0 +1,29 @@
+### Register User
+POST localhost:8000/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "test@gmail.com",
+  "password": "test1234",
+  "name": "Test User"
+}
+
+### Login User
+POST localhost:8000/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "test@gmail.com",
+  "password": "test1234"
+}
+
+> {% client.global.set("token", response.body.access_token) %}
+
+### Test Authenticated Endpoint
+GET localhost:8000/auth/test
+Authorization: Bearer {{ token }}
+Content-Type: application/json
+Accept: application/json
+
