@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
 from backend.utils.auth import get_current_user
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, InvitarUsuarioRequest, UserListItem
-from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, invitar_usuario_a_grupo, listar_usuarios
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem
+from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios
 from backend.database import get_db, User, db
 from sqlalchemy.orm import Session
 from typing import List
@@ -47,9 +47,9 @@ async def crear_grupo_endpoint(
 
 
 @router.post("/miembros", response_model=MiembroAgregarResponse, status_code=201)
-async def agregar_miembro(request: MiembroAgregarRequest , user: UserBase = Depends(get_current_user)):
+async def agregar_miembro(request: MiembroAgregarRequest, user: UserBase = Depends(get_current_user)):
     try:
-        miembro = agregar_miembro_controller(
+        miembro_data = agregar_miembro_controller(
             id_grupo=request.id_grupo,
             id_usuario=request.id_usuario,
         )
@@ -61,11 +61,12 @@ async def agregar_miembro(request: MiembroAgregarRequest , user: UserBase = Depe
         raise HTTPException(status_code=500, detail=f"Error agregando miembro: {e}")
 
     return MiembroAgregarResponse(
-        id_pk=miembro.id_pk,
-        id_grupo_fk=miembro.id_grupo_fk,
-        id_user_fk=miembro.id_user_fk,
+        id_pk=miembro_data["id_pk"],
+        id_grupo_fk=miembro_data["id_grupo_fk"],
+        id_user_fk=miembro_data["id_user_fk"],
         mensaje="Miembro agregado exitosamente al grupo."
     )
+
 
 @router.get("/getGroups", response_model=List[GrupoListItem])
 def obtener_grupos(
@@ -87,7 +88,12 @@ def obtener_grupo(
     grupo = obtener_detalles_grupo(session, grupo_id, user.id_pk)
 
     miembros = [
-        miembro.id_user_fk for miembro in grupo.miembros_grupo
+        MiembroDetalle(
+            id=miembro.usuario.id_pk,
+            nombre=miembro.usuario.nombre,
+            correo=miembro.usuario.correo
+        )
+        for miembro in grupo.miembros_grupo
     ]
 
     return GrupoDetalleResponse(
@@ -97,22 +103,7 @@ def obtener_grupo(
         miembros=miembros
     )
 
-@router.post("/invite/{grupo_id}", status_code=200)
-def invitar_usuario(
-    grupo_id: int,
-    body: InvitarUsuarioRequest,
-    user: Annotated[User, Depends(get_current_user)],
-    session: Annotated[Session, Depends(get_db)]
-):
-    invitar_usuario_a_grupo(
-        session=session,
-        id_grupo=grupo_id,
-        id_usuario_invitado=body.id_usuario,
-        id_usuario_que_invita=user.id_pk
-    )
-    return {"mensaje": "Usuario invitado correctamente al grupo."}
 
-outer = APIRouter()
 
 @router.get("/usuarios", response_model=List[UserListItem])
 def obtener_usuarios(session: Session = Depends(get_db)):

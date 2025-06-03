@@ -9,19 +9,16 @@ from typing import List, Type
 from fastapi import Depends, HTTPException
 
 
-def agregar_miembro_controller(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
+def agregar_miembro_controller(id_grupo: int, id_usuario: int) -> dict:
     with db_instance.write() as session:
-        # Verificar que el grupo existe
         grupo = session.query(Grupos).filter(Grupos.id_pk == id_grupo).one_or_none()
         if not grupo:
             raise ValueError("El grupo no existe.")
 
-        # Verificar que el usuario existe
         usuario = session.query(User).filter(User.id_pk == id_usuario).one_or_none()
         if not usuario:
             raise ValueError("El usuario no existe.")
 
-        # Verificar si ya es miembro
         miembro_existente = session.query(MiembrosGrupos).filter(
             MiembrosGrupos.id_grupo_fk == id_grupo,
             MiembrosGrupos.id_user_fk == id_usuario
@@ -30,14 +27,19 @@ def agregar_miembro_controller(id_grupo: int, id_usuario: int) -> MiembrosGrupos
         if miembro_existente:
             raise ValueError("El usuario ya es miembro del grupo.")
 
-        # Crear miembro
         nuevo_miembro = MiembrosGrupos(
             id_grupo_fk=id_grupo,
             id_user_fk=id_usuario
         )
         session.add(nuevo_miembro)
-        return nuevo_miembro
+        session.flush()  # fuerza que se le asigne id_pk sin cerrar sesión
 
+        # Extrae los datos antes de cerrar la sesión
+        return {
+            "id_pk": nuevo_miembro.id_pk,
+            "id_grupo_fk": nuevo_miembro.id_grupo_fk,
+            "id_user_fk": nuevo_miembro.id_user_fk
+        }
 
 def crear_grupo(session: Session, nombre: str) -> tuple[Grupos, str]:
     tipo_cifrado = 'ECC'  # Forzado
@@ -72,9 +74,12 @@ def listar_grupos(session: Session, user_id: int) -> List[Grupos]:
 
     return grupos
 
+from sqlalchemy.orm import joinedload
+
 def obtener_detalles_grupo(session: Session, grupo_id: int, user_id: int) -> Grupos:
     grupo = (
         session.query(Grupos)
+        .options(joinedload(Grupos.miembros_grupo).joinedload(MiembrosGrupos.usuario))
         .join(MiembrosGrupos)
         .filter(Grupos.id_pk == grupo_id, MiembrosGrupos.id_user_fk == user_id)
         .first()
@@ -85,35 +90,7 @@ def obtener_detalles_grupo(session: Session, grupo_id: int, user_id: int) -> Gru
 
     return grupo
 
-def invitar_usuario_a_grupo(
-    session: Session, id_grupo: int, id_usuario_invitado: int, id_usuario_que_invita: int
-) -> None:
-    # Verificar que quien invita es miembro del grupo
-    miembro = session.query(MiembrosGrupos).filter_by(
-        id_grupo_fk=id_grupo,
-        id_user_fk=id_usuario_que_invita
-    ).first()
 
-    if not miembro:
-        raise HTTPException(status_code=403, detail="No tienes permiso para invitar a este grupo.")
-
-    # Verificar que el usuario a invitar no esté ya en el grupo
-    ya_miembro = session.query(MiembrosGrupos).filter_by(
-        id_grupo_fk=id_grupo,
-        id_user_fk=id_usuario_invitado
-    ).first()
-
-    if ya_miembro:
-        raise HTTPException(status_code=409, detail="El usuario ya es miembro del grupo.")
-
-    # Agregar al nuevo miembro
-    nuevo_miembro = MiembrosGrupos(
-        id_grupo_fk=id_grupo,
-        id_user_fk=id_usuario_invitado
-    )
-    session.add(nuevo_miembro)
-    session.commit()
- # Asegúrate de importar el modelo correcto
 
 def listar_usuarios(session: Session) -> list[Type[User]]:
     return session.query(User).all()

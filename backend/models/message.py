@@ -70,17 +70,23 @@ class MessageReceived(BaseModel):
     class Config:
         orm_mode = True
 
-class GrupoDetalleResponse(BaseModel):
-    id_pk: int
-    nombre_de_grupo: str
-    tipo_cifrado: str
-    miembros: list[int]  # O lista de objetos si quieres más detalle
+class MiembroDetalle(BaseModel):
+    id: int
+    nombre: str
+    correo: str
 
     class Config:
         orm_mode = True
 
-class InvitarUsuarioRequest(BaseModel):
-    id_usuario: int
+
+class GrupoDetalleResponse(BaseModel):
+    id_pk: int
+    nombre_de_grupo: str
+    tipo_cifrado: str
+    miembros: list[MiembroDetalle]
+
+    class Config:
+        orm_mode = True
 
 class UserListItem(BaseModel):
     id_pk: int
