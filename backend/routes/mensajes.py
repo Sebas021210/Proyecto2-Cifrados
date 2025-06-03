@@ -6,8 +6,31 @@ from backend.controllers.firma import calcular_hash_mensaje, decrypt_message_aes
 from backend.models.message import MessageIndividualResponse, MessageReceived, MessageIndividualRequestSimplified
 from sqlalchemy.orm import Session
 from types import SimpleNamespace as Namespace
+import json
 
 router = APIRouter()
+
+# Route to get all messages
+@router.get("/all_mensajes")
+def get_all_messages():
+    with db.read() as session:
+        mensajes = session.query(Mensajes).all()
+        resultado = []
+
+        for m in mensajes:
+            resultado.append({
+                "id": m.id,
+                "remitente": m.remitente.correo if m.remitente else m.id_remitente,
+                "receptor": m.receptor.correo if m.receptor else m.id_receptor,
+                "mensaje_cifrado": m.mensaje,
+                "firma": m.firma,
+                "hash_mensaje": m.hash_mensaje,
+                "clave_aes_cifrada": json.loads(m.clave_aes_cifrada),
+                "timestamp": m.timestamp.isoformat(),
+                "id_bloque": m.id_bloque
+            })
+
+        return resultado
 
 # Route to send individual messages
 @router.post("/message/{user_destino}")
