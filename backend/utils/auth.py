@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from backend.database import get_db, User
 
 
-SECRET_KEY = "changeme"
+SECRET_KEY = "clave_secreta_super_segura"
 ALGORITHM = "HS256"
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

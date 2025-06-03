@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, LargeBinary
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
@@ -40,6 +40,7 @@ class Mensajes(Base):
     id_receptor = Column(Integer, ForeignKey('user.id_pk'))
     mensaje = Column(String, nullable=False)
     firma = Column(String, nullable=False)
+    clave_aes = Column(LargeBinary, nullable=True)
     clave_aes_cifrada = Column(String, nullable=False)
     hash_mensaje = Column(String, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
