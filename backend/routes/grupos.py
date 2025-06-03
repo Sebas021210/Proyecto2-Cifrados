@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
 from backend.utils.auth import get_current_user
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem
-from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest
+from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios, eliminar_miembro_controller
 from backend.database import get_db, User, db
 from sqlalchemy.orm import Session
 from typing import List
@@ -113,3 +113,21 @@ def obtener_usuarios(session: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener usuarios: {e}")
 
+
+
+@router.delete("/miembros", status_code=200)
+async def eliminar_miembro(
+    request: MiembroEliminarRequest,
+    user: UserBase = Depends(get_current_user)
+):
+    try:
+        eliminar_miembro_controller(
+            id_grupo=request.id_grupo,
+            id_usuario=request.id_usuario
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error eliminando miembro: {e}")
+
+    return {"mensaje": "Miembro eliminado del grupo exitosamente."}

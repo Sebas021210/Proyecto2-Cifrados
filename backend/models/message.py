@@ -96,3 +96,8 @@ class UserListItem(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class MiembroEliminarRequest(BaseModel):
+    id_grupo: int
+    id_usuario: int

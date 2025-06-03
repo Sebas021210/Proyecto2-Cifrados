@@ -94,3 +94,15 @@ def obtener_detalles_grupo(session: Session, grupo_id: int, user_id: int) -> Gru
 
 def listar_usuarios(session: Session) -> list[Type[User]]:
     return session.query(User).all()
+
+def eliminar_miembro_controller(id_grupo: int, id_usuario: int):
+    with db_instance.write() as session:
+        miembro = session.query(MiembrosGrupos).filter(
+            MiembrosGrupos.id_grupo_fk == id_grupo,
+            MiembrosGrupos.id_user_fk == id_usuario
+        ).first()
+
+        if not miembro:
+            raise ValueError("El usuario no es miembro del grupo o ya fue eliminado.")
+
+        session.delete(miembro)
