@@ -72,6 +72,7 @@ def get_received_messages(
     clave_privada: str = Query(..., description="Clave privada en formato PEM del receptor"),
     algoritmo_hash: str = "sha256"
 ):
+    clave_privada = clave_privada.replace("\\n", "\n")
     messages = db.query(Mensajes).filter(Mensajes.id_receptor == user.id_pk).order_by(Mensajes.timestamp.desc()).all()
     message_responses = []
 
