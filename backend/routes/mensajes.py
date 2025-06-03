@@ -67,6 +67,7 @@ def send_individual_message(
 # Route to get individual messages
 @router.get("/message/received", response_model=list[MessageReceived])
 def get_received_messages(
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     clave_privada: str = Query(..., description="Clave privada en formato PEM del receptor"),
     algoritmo_hash: str = "sha256"
@@ -77,8 +78,8 @@ def get_received_messages(
     for msg in messages:
         try:
             mensaje_descifrado = verificar_y_descifrar_mensaje(
-                mensaje_cifrado=msg.mensaje,
-                clave_aes_cifrada=msg.clave_aes_cifrada,
+                mensaje_cifrado=json.loads(msg.mensaje),
+                clave_aes_cifrada=json.loads(msg.clave_aes_cifrada),
                 firma=msg.firma,
                 hash_mensaje=msg.hash_mensaje,
                 clave_privada_receptor_pem=clave_privada,
@@ -105,6 +106,7 @@ def get_received_messages(
 # Route to  get individual messages
 @router.get("/message/sent", response_model=list[MessageReceived])
 def get_sent_messages(
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     algoritmo_hash: str = "sha256"
 ):
@@ -113,10 +115,10 @@ def get_sent_messages(
 
     for msg in messages:
         try:
-            if msg.clave_aes_remitente is None:
+            if msg.clave_aes is None:
                 raise ValueError("No se encuentra la clave AES para el remitente")
 
-            mensaje_descifrado = decrypt_message_aes(msg.mensaje, msg.clave_aes_remitente)
+            mensaje_descifrado = decrypt_message_aes(msg.mensaje, msg.clave_aes)
             hash_recalculado = calcular_hash_mensaje(mensaje_descifrado, algoritmo_hash)
             if hash_recalculado != msg.hash_mensaje:
                 raise ValueError("Hash del mensaje no coincide")
@@ -130,6 +132,7 @@ def get_sent_messages(
                 message=mensaje_descifrado,
                 firma=msg.firma,
                 hash_mensaje=msg.hash_mensaje,
+                clave_aes=msg.clave_aes,
                 clave_aes_cifrada=msg.clave_aes_cifrada,
                 timestamp=msg.timestamp,
                 remitente=msg.receptor.correo
