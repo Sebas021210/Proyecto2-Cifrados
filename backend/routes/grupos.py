@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
-from backend.controllers.auth import get_current_user
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, InvitarUsuarioRequest
-from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro, obtener_detalles_grupo, invitar_usuario_a_grupo
-from backend.database import get_db, User
+from backend.utils.auth import get_current_user
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, InvitarUsuarioRequest, UserListItem
+from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, invitar_usuario_a_grupo, listar_usuarios
+from backend.database import get_db, User, db
 from sqlalchemy.orm import Session
 from typing import List
 from typing import Annotated
@@ -12,17 +12,28 @@ from typing import Annotated
 router = APIRouter()
 
 @router.post("/newGroup", response_model=GrupoCreateResponse, status_code=201)
-async def crear_grupo(request: GrupoCreateRequest, user: UserBase = Depends(get_current_user)):
+async def crear_grupo_endpoint(
+    request: GrupoCreateRequest,
+    user: UserBase = Depends(get_current_user),
+    session: Session = Depends(get_db)
+):
     try:
-        grupo = crear_grupo(
+        grupo, llave_privada = crear_grupo(
+            session=session,
             nombre=request.nombre,
-            llave_publica=request.llave_publica,
-            tipo_cifrado=request.tipo_cifrado,
         )
-    except IntegrityError:
-        raise HTTPException(status_code=409, detail="Ya existe un grupo con este nombre o llave.")
+
+        # ✅ Agregar automáticamente al creador como miembro del grupo
+        with db.write() as write_session:
+            agregar_miembro_controller(
+                id_grupo=grupo.id_pk,
+                id_usuario=user.id_pk,
+            )
+
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="Ya existe un grupo con este nombre.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creando grupo: {e}")
 
@@ -30,13 +41,15 @@ async def crear_grupo(request: GrupoCreateRequest, user: UserBase = Depends(get_
         id_pk=grupo.id_pk,
         nombre_de_grupo=grupo.nombre_de_grupo,
         tipo_cifrado=grupo.tipo_cifrado,
-        mensaje="Grupo creado con éxito."
+        llave_privada=llave_privada,
+        mensaje="Grupo creado con éxito y te agregaste como miembro."
     )
+
 
 @router.post("/miembros", response_model=MiembroAgregarResponse, status_code=201)
 async def agregar_miembro(request: MiembroAgregarRequest , user: UserBase = Depends(get_current_user)):
     try:
-        miembro = agregar_miembro(
+        miembro = agregar_miembro_controller(
             id_grupo=request.id_grupo,
             id_usuario=request.id_usuario,
         )
@@ -57,10 +70,10 @@ async def agregar_miembro(request: MiembroAgregarRequest , user: UserBase = Depe
 @router.get("/getGroups", response_model=List[GrupoListItem])
 def obtener_grupos(
     session: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserBase = Depends(get_current_user),
 ):
     try:
-        grupos = listar_grupos(session, current_user["user_id"])
+        grupos = listar_grupos(session, current_user.id_pk )
         return grupos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener grupos: {e}")
@@ -98,4 +111,14 @@ def invitar_usuario(
         id_usuario_que_invita=user.id_pk
     )
     return {"mensaje": "Usuario invitado correctamente al grupo."}
+
+outer = APIRouter()
+
+@router.get("/usuarios", response_model=List[UserListItem])
+def obtener_usuarios(session: Session = Depends(get_db)):
+    try:
+        usuarios = listar_usuarios(session)
+        return usuarios
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener usuarios: {e}")
 

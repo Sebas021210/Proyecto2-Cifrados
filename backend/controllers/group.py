@@ -1,14 +1,15 @@
 from sqlalchemy.exc import IntegrityError
-from backend.database import Grupos
+from backend.database import Grupos, User
 from backend.database import db as db_instance
 from backend.database.schemas import MiembrosGrupos, Grupos, User
 from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
 from sqlalchemy.orm import Session
 from backend.database import db, User, Mensajes, Blockchain
-from typing import List
+from typing import List, Type
 from fastapi import Depends, HTTPException
 
-def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
+
+def agregar_miembro_controller(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
     with db_instance.write() as session:
         # Verificar que el grupo existe
         grupo = session.query(Grupos).filter(Grupos.id_pk == id_grupo).one_or_none()
@@ -37,24 +38,17 @@ def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
         session.add(nuevo_miembro)
         return nuevo_miembro
 
-def crear_grupo(session: Session, nombre: str, tipo_cifrado: str) -> Grupos:
-    tipo_cifrado = tipo_cifrado.upper()
-    cifrados_validos = ['RSA+AES', 'ECC']
-    
-    if tipo_cifrado not in cifrados_validos:
-        raise ValueError("Tipo de cifrado no válido. Opciones: RSA+AES o ECC.")
-    
-    # Generar llaves
-    if tipo_cifrado == 'RSA+AES':
-        llave_privada, llave_publica = generate_rsa_keys()
-    elif tipo_cifrado == 'ECC':
-        llave_privada, llave_publica = generate_ecc_keys()
-    
+
+def crear_grupo(session: Session, nombre: str) -> tuple[Grupos, str]:
+    tipo_cifrado = 'ECC'  # Forzado
+
+    # Generar llaves ECC
+    llave_privada, llave_publica = generate_ecc_keys()
+
     grupo = Grupos(
         nombre_de_grupo=nombre,
         tipo_cifrado=tipo_cifrado,
         llave_publica=llave_publica,
-        # Opcional: puedes guardar la privada cifrada si lo deseas
     )
 
     session.add(grupo)
@@ -64,7 +58,7 @@ def crear_grupo(session: Session, nombre: str, tipo_cifrado: str) -> Grupos:
         session.rollback()
         raise ValueError("Error: Ya existe un grupo con este nombre.")
 
-    return grupo
+    return grupo, llave_privada
 
 
 def listar_grupos(session: Session, user_id: int) -> List[Grupos]:
@@ -119,4 +113,7 @@ def invitar_usuario_a_grupo(
     )
     session.add(nuevo_miembro)
     session.commit()
+ # Asegúrate de importar el modelo correcto
 
+def listar_usuarios(session: Session) -> list[Type[User]]:
+    return session.query(User).all()

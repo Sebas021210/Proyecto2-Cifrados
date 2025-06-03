@@ -13,16 +13,18 @@ class VerificacionRequest(BaseModel):
 class MensajeSolo(BaseModel):
     message: str
 
+# schemas.py
 class GrupoCreateRequest(BaseModel):
     nombre: str
-    llave_publica: str
-    tipo_cifrado: str
+
 
 class GrupoCreateResponse(BaseModel):
     id_pk: int
     nombre_de_grupo: str
     tipo_cifrado: str
+    llave_privada: str
     mensaje: str
+
 
 class GrupoListItem(BaseModel):
     id_pk: int
@@ -79,3 +81,12 @@ class GrupoDetalleResponse(BaseModel):
 
 class InvitarUsuarioRequest(BaseModel):
     id_usuario: int
+
+class UserListItem(BaseModel):
+    id_pk: int
+    nombre: str
+    correo: str
+    public_key: str
+
+    class Config:
+        orm_mode = True
