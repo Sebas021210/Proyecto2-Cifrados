@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from backend.database import db, User, Mensajes, get_db
 from backend.controllers.messages import guardar_mensaje_individual, verificar_y_descifrar_mensaje
 from backend.utils.auth import get_current_user
@@ -6,7 +6,8 @@ from backend.controllers.firma import calcular_hash_mensaje, decrypt_message_aes
 from backend.models.message import MessageIndividualResponse, MessageReceived, MessageIndividualRequestSimplified
 from sqlalchemy.orm import Session
 from types import SimpleNamespace as Namespace
-import json
+from typing import List
+import json, base64
 
 router = APIRouter()
 
@@ -65,14 +66,19 @@ def send_individual_message(
         raise HTTPException(status_code=400, detail=str(e))
 
 # Route to get individual messages
-@router.get("/message/received", response_model=list[MessageReceived])
+@router.get("/message/received", response_model=List[MessageReceived])
 def get_received_messages(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-    clave_privada: str = Query(..., description="Clave privada en formato PEM del receptor"),
-    algoritmo_hash: str = "sha256"
+    clave_privada_b64: str = Query(..., description="Clave privada del receptor en formato Base64 URL-safe"),
+    algoritmo_hash: str = Query("sha256")
 ):
-    clave_privada = clave_privada.replace("\\n", "\n")
+    try:
+        clave_privada_bytes = base64.urlsafe_b64decode(clave_privada_b64)
+        clave_privada = clave_privada_bytes.decode("utf-8")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error al decodificar clave privada: {str(e)}")
+
     messages = db.query(Mensajes).filter(Mensajes.id_receptor == user.id_pk).order_by(Mensajes.timestamp.desc()).all()
     message_responses = []
 
