@@ -12,6 +12,14 @@ import { useNavigate } from "react-router-dom";
 import Logo from "../../assets/LogIn.png";
 import axios from "axios";
 import { useEffect } from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from "@mui/material";
+
+import { LoadingButton } from "@mui/lab";
 
 function LoginForm() {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -26,6 +34,11 @@ function LoginForm() {
   const [emailRegister, setEmailRegister] = useState("");
   const [passwordRegister, setPasswordRegister] = useState("");
   const navigate = useNavigate();
+
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [pin, setPin] = useState("");
+  const [loadingPin, setLoadingPin] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -61,7 +74,10 @@ function LoginForm() {
         password: passwordRegister,
         name: fullName,
       });
-      setIsRegistering(false);
+
+      setPendingEmail(emailRegister);
+      setShowPinModal(true); // abrir modal
+      alert("Revisa tu correo para el PIN");
     } catch (error) {
       console.error(
         "Error en registro:",
@@ -74,6 +90,25 @@ function LoginForm() {
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     navigate("/", { replace: true }); // esto borra el historial anterior
+  };
+
+  const handleVerifyPin = async () => {
+    setLoadingPin(true);
+    try {
+      const response = await axios.post(`${API_URL}/auth/verify-pin`, {
+        email: pendingEmail,
+        pin: pin,
+      });
+
+      alert("Correo verificado correctamente");
+      setShowPinModal(false);
+      setIsRegistering(false); // redirigir a login normal
+    } catch (error) {
+      console.error("Error al verificar PIN:", error);
+      alert("❌ PIN incorrecto o expirado");
+    } finally {
+      setLoadingPin(false);
+    }
   };
 
   return (
@@ -322,6 +357,32 @@ function LoginForm() {
           </Paper>
         </Box>
       </Box>
+      <Dialog open={showPinModal} onClose={() => {}}>
+        <DialogTitle>Verifica tu correo electrónico</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Ingresa el código PIN que se te envió a tu correo.
+          </Typography>
+          <TextField
+            margin="dense"
+            label="PIN de verificación"
+            fullWidth
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            variant="outlined"
+          />
+        </DialogContent>
+        <DialogActions>
+          <LoadingButton
+            onClick={handleVerifyPin}
+            loading={loadingPin}
+            variant="contained"
+            color="primary"
+          >
+            Verificar PIN
+          </LoadingButton>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

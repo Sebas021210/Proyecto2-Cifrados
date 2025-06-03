@@ -13,11 +13,19 @@ from backend.database import User, get_db
 from backend.models.responses import SuccessfulRegisterResponse
 from backend.models.user import LoginRequest, RegisterRequest
 from backend.utils.auth import create_access_token, create_refresh_token, SECRET_KEY, ALGORITHM
+from random import randint
+from backend.utils.email_config import send_verification_email  # importa la función
+from pydantic import EmailStr
+from fastapi import Body
+
 
 router = APIRouter()
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+
+verification_codes = {}  # clave: correo, valor: pin
+
 
 
 @router.post("/login")
@@ -59,9 +67,6 @@ async def login(login_request: LoginRequest, db=Depends(get_db)):
 
 @router.post("/register")
 async def register(register_request: RegisterRequest, db=Depends(get_db)):
-    """
-    Endpoint para registrar un nuevo usuario con usuario y contraseña.
-    """
     existing_user = db.query(User).filter(User.correo == register_request.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -80,10 +85,18 @@ async def register(register_request: RegisterRequest, db=Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return SuccessfulRegisterResponse(
-        message="Usuario registrado correctamente",
-        private_key=private,
-    )
+    # Generar y guardar PIN
+    pin = str(randint(100000, 999999))
+    verification_codes[new_user.correo] = pin
+
+    # Enviar por correo
+    await send_verification_email(new_user.correo, pin)
+
+    return {
+        "message": "Usuario registrado. Verifica tu correo con el código enviado.",
+        "private_key": private,
+        "email": new_user.correo
+    }
 
 
 @router.get("/login/google")
@@ -207,3 +220,16 @@ async def refresh_token(refresh_token: str = Cookie(None), db = Depends(get_db))
 
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid refresh token. Error: {str(e)}")
+
+
+@router.post("/verify-pin")
+async def verify_pin(email: EmailStr = Body(...), pin: str = Body(...)):
+    expected_pin = verification_codes.get(email)
+    if not expected_pin:
+        raise HTTPException(status_code=400, detail="No se encontró PIN para este correo.")
+    if pin != expected_pin:
+        raise HTTPException(status_code=400, detail="PIN incorrecto")
+
+    del verification_codes[email]  # eliminar después de verificar
+
+    return {"message": "Correo verificado exitosamente ✅"}
