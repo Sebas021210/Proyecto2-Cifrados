@@ -107,7 +107,7 @@ function ChatPage() {
     <Box
       sx={{
         height: "80vh",
-        width: "170vh",
+        width: "150vh",
         marginLeft: "10vh",
         marginTop: "5vh",
         backgroundColor: "#1F1F1F",
