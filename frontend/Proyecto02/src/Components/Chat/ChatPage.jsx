@@ -19,6 +19,7 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { useNavigate } from "react-router-dom";
+import * as Decrypt from "./DecryptMessage.jsx";
 
 function ChatPage() {
   const [tab, setTab] = useState(0);
@@ -26,6 +27,7 @@ function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [users, setUsers] = useState([]);
+  const [activeUser, setActiveUser] = useState(null);
   const [privateKeyFile, setPrivateKeyFile] = useState(null);
 
   const navigate = useNavigate();
@@ -40,10 +42,31 @@ function ChatPage() {
     navigate("/", { replace: true }); // redirige al login y borra el historial
   };
 
-  const handleSend = () => {
-    if (message.trim()) {
-      setMessages([...messages, message]);
+  const handleSend = async () => {
+    if (!message.trim() || !activeUser) return;
+
+    try{
+      const response = await fetch(`http://localhost:8000/msg/message/${activeUser.correo}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          mensaje: message,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al enviar el mensaje");
+      }
+
+      const data = await response.json();
+      console.log("Mensaje enviado:", data);
+      setMessages((prev) => [...prev, message]);
       setMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
     }
   };
 
@@ -88,6 +111,10 @@ function ChatPage() {
         const data = await response.json();
         console.log("Usuarios obtenidos:", data);
         setUsers(data);
+        if (data.length > 0) {
+          setActiveUser(data[0]);
+        }
+
       } catch (error) {
         console.error("Error fetching users:", error);
         setUsers([]);
@@ -97,11 +124,99 @@ function ChatPage() {
     getUsersData();
   }, [accessToken]);
 
+  useEffect(() => {
+    const privateKeyPem = `-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgLf1PGaIkNFgdv8Wf\nsXRxK1xyf1tWHZzJFrr98uvjj7ihRANCAASn9jmB6VWpBh9zY+DSue1l4U6JpJW/\n2k19ZdUHja24md/M+Gb4dCby3teVctiWoMC8ih19lS8aJt1XJWDovtWm\n-----END PRIVATE KEY-----`;
+    
+    const getMessagesReceived = async () => {
+      if (!activeUser) return;
+      try {
+        const response = await fetch(`http://localhost:8000/msg/message/received/${activeUser.correo}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Error al obtener los mensajes");
+        }
+        const data = await response.json();
+        console.log("Mensajes obtenidos:", data);
+
+        const mensajesDescifrados = await Promise.all(
+          data.map(async (msg) => {
+            try {
+              const contenido = JSON.parse(msg.message);
+              const clave = JSON.parse(msg.clave_aes_cifrada);
+              const textoPlano = await Decrypt.descifrarTodo(clave, contenido, privateKeyPem);
+              setMessages((prev) => [...prev, textoPlano]);
+              
+              return {
+                ...msg,
+                contenido_descifrado: textoPlano,
+              };
+            } catch (e) {
+              console.error("Error descifrando mensaje:", e);
+              return { ...msg, contenido_descifrado: null };
+            }
+          })
+        );
+
+        console.log("Mensajes descifrados:", mensajesDescifrados);
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      }
+    };
+    getMessagesReceived();
+  }, [activeUser, accessToken]);
+
+  useEffect(() => {
+    const getMessagesSent = async () => {
+      if (!activeUser) return;
+      try {
+        const response = await fetch(`http://localhost:8000/msg/message/sent/${activeUser.correo}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Error al obtener los mensajes enviados");
+        }
+        const data = await response.json();
+        console.log("Mensajes enviados obtenidos:", data);
+      } catch (error) {
+        console.error("Error fetching sent messages:", error);
+      }
+    };
+    getMessagesSent();
+  }, [activeUser, accessToken]);
+
   const filteredUsers = users.filter((user) =>
     `${user.nombre} ${user.correo}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
+
+  const handleDownloadKey = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/auth/download-private-key", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Error al descargar la llave ECC");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "llave_ecc.zip";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (error) {
+      console.error("Error downloading key:", error);
+    }
+  }
 
   return (
     <Box
@@ -149,6 +264,22 @@ function ChatPage() {
           >
             Acciones
           </Typography>
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{
+              backgroundColor: "white",
+              color: "#000",
+              fontWeight: "bold",
+              borderRadius: 2,
+              textTransform: "none",
+              mb: 1,
+              "&:hover": { backgroundColor: "#B0B0B0" },
+            }}
+            onClick={handleDownloadKey}
+          >
+            Descargar llave ECC
+          </Button>
           <Button
             fullWidth
             variant="contained"
@@ -234,7 +365,14 @@ function ChatPage() {
                   alignItems: "center",
                   mb: 2,
                   gap: 1,
+                  cursor: "pointer",
+                  backgroundColor: activeUser?.id_pk === item.id_pk ? "#2a2a2a" : "transparent",
+                  borderRadius: 1,
+                  px: 1,
+                  py: 0.5,
+                  "&:hover": { backgroundColor: "#333" },
                 }}
+                onClick={() => setActiveUser(item)}
               >
                 <Avatar
                   alt={tab === 0 ? item.nombre : item}
@@ -278,9 +416,12 @@ function ChatPage() {
             borderBottom: "1px solid #444",
           }}
         >
-          <Avatar src="/broken-image.jpg" />
+          <Avatar
+            alt={activeUser ? activeUser.nombre : "Usuario"}
+            src="/broken-image.jpg"
+          />
           <Typography variant="subtitle1" fontWeight="bold">
-            Chat con Usuario 1
+            {activeUser ? activeUser.nombre : "Selecciona un usuario"}
           </Typography>
         </Box>
 
