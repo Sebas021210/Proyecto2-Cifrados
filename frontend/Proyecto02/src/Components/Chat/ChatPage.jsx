@@ -10,6 +10,12 @@ import {
   Divider,
   Avatar,
   InputBase,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { useNavigate } from "react-router-dom";
@@ -20,9 +26,14 @@ function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [users, setUsers] = useState([]);
+  const [privateKeyFile, setPrivateKeyFile] = useState(null);
 
   const navigate = useNavigate();
   const accessToken = localStorage.getItem("access_token");
+
+  const [openGroupModal, setOpenGroupModal] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState([]);
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -34,6 +45,33 @@ function ChatPage() {
       setMessages([...messages, message]);
       setMessage("");
     }
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) setPrivateKeyFile(file);
+  };
+
+  const handleFileDrop = (event) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file) setPrivateKeyFile(file);
+  };
+
+  const handleToggleUser = (correo) => {
+    setSelectedUsers((prev) =>
+      prev.includes(correo)
+        ? prev.filter((email) => email !== correo)
+        : [...prev, correo]
+    );
+  };
+
+  const handleCreateGroup = () => {
+    console.log("Grupo:", groupName);
+    console.log("Integrantes:", selectedUsers);
+    setOpenGroupModal(false);
+    setGroupName("");
+    setSelectedUsers([]);
   };
 
   useEffect(() => {
@@ -60,14 +98,16 @@ function ChatPage() {
   }, [accessToken]);
 
   const filteredUsers = users.filter((user) =>
-    `${user.nombre} ${user.correo}`.toLowerCase().includes(searchTerm.toLowerCase())
+    `${user.nombre} ${user.correo}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
   );
 
   return (
     <Box
       sx={{
         height: "80vh",
-        width: "150vh",
+        width: "170vh",
         marginLeft: "10vh",
         marginTop: "5vh",
         backgroundColor: "#1F1F1F",
@@ -112,21 +152,7 @@ function ChatPage() {
           <Button
             fullWidth
             variant="contained"
-            sx={{
-              backgroundColor: "white",
-              color: "#000",
-              fontWeight: "bold",
-              borderRadius: 2,
-              textTransform: "none",
-              mb: 1,
-              "&:hover": { backgroundColor: "#B0B0B0" },
-            }}
-          >
-            Crear llaves ECC
-          </Button>
-          <Button
-            fullWidth
-            variant="contained"
+            onClick={() => setOpenGroupModal(true)}
             sx={{
               backgroundColor: "white",
               color: "#000",
@@ -337,6 +363,124 @@ function ChatPage() {
           </Button>
         </Box>
       </Paper>
+
+      {/* PANEL DERECHO: Subir Llave Privada */}
+      <Paper
+        elevation={6}
+        sx={{
+          height: "95%",
+          backgroundColor: "#2C2C2C",
+          borderRadius: 4,
+          color: "#fff",
+          p: 2,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 2,
+        }}
+        onDrop={handleFileDrop}
+        onDragOver={(e) => e.preventDefault()}
+      >
+        <Typography variant="h6" fontWeight="bold">
+          Llave Privada
+        </Typography>
+        <Box
+          sx={{
+            border: "2px dashed #aaa",
+            borderRadius: 4,
+            width: "97%",
+            height: 500,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            p: 2,
+            mt: 3,
+            textAlign: "center",
+            color: "#ccc",
+          }}
+        >
+          {privateKeyFile ? privateKeyFile.name : "Arrastra tu archivo aquí"}
+        </Box>
+        <Button
+          variant="contained"
+          component="label"
+          sx={{
+            backgroundColor: "#1F1F1F",
+            color: "white",
+            fontWeight: "bold",
+            borderRadius: 2,
+            textTransform: "none",
+            "&:hover": { backgroundColor: "#B0B0B0" },
+          }}
+        >
+          Subir Archivo
+          <input type="file" hidden onChange={handleFileUpload} />
+        </Button>
+      </Paper>
+
+      {/* Modal para crear un grupo nuevo */}
+      <Dialog
+        open={openGroupModal}
+        onClose={() => setOpenGroupModal(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ backgroundColor: "#1F1F1F", color: "#fff" }}>
+          Crear nuevo grupo
+        </DialogTitle>
+        <DialogContent sx={{ backgroundColor: "#2C2C2C" }}>
+          <TextField
+            label="Nombre del grupo"
+            variant="outlined"
+            fullWidth
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            sx={{ my: 2, input: { color: "#fff" }, label: { color: "#aaa" } }}
+          />
+          <Typography variant="subtitle1" color="#fff" gutterBottom>
+            Selecciona usuarios:
+          </Typography>
+          {users.map((user, i) => (
+            <FormControlLabel
+              key={i}
+              control={
+                <Checkbox
+                  checked={selectedUsers.includes(user.correo)}
+                  onChange={() => handleToggleUser(user.correo)}
+                  sx={{ color: "#fff" }}
+                />
+              }
+              label={
+                <Typography color="#fff">
+                  {user.nombre} ({user.correo})
+                </Typography>
+              }
+            />
+          ))}
+        </DialogContent>
+        <DialogActions sx={{ backgroundColor: "#2C2C2C", p: 2 }}>
+          <Button
+            onClick={() => setOpenGroupModal(false)}
+            sx={{ color: "#ccc", textTransform: "none" }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleCreateGroup}
+            variant="contained"
+            sx={{
+              backgroundColor: "#1F1F1F",
+              color: "#fff",
+              fontWeight: "bold",
+              borderRadius: 2,
+              textTransform: "none",
+              "&:hover": { backgroundColor: "#B0B0B0" },
+            }}
+          >
+            Crear grupo
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
