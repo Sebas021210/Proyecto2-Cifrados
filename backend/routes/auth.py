@@ -1,5 +1,4 @@
 import os
-
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Cookie
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -7,18 +6,22 @@ from google.auth.transport import requests
 from google.oauth2 import id_token
 from datetime import timedelta
 import jwt
-
 from backend.controllers.keys import generate_ecc_keys
 from backend.database import User, get_db
 from backend.models.responses import SuccessfulRegisterResponse
 from backend.models.user import LoginRequest, RegisterRequest
 from backend.utils.auth import create_access_token, create_refresh_token, SECRET_KEY, ALGORITHM, hash_password, get_current_user
+from random import randint
+from backend.utils.email_config import send_verification_email  # importa la función
+from pydantic import EmailStr
+from fastapi import Body
 
 router = APIRouter()
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
+verification_codes = {}  # clave: correo, valor: pin
 
 @router.post("/login")
 async def login(login_request: LoginRequest, db=Depends(get_db)):
@@ -56,12 +59,8 @@ async def login(login_request: LoginRequest, db=Depends(get_db)):
     # Retornamos la respuesta de inicio de sesión exitoso
     return response
 
-
 @router.post("/register")
 async def register(register_request: RegisterRequest, db=Depends(get_db)):
-    """
-    Endpoint para registrar un nuevo usuario con usuario y contraseña.
-    """
     existing_user = db.query(User).filter(User.correo == register_request.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -80,11 +79,18 @@ async def register(register_request: RegisterRequest, db=Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return SuccessfulRegisterResponse(
-        message="Usuario registrado correctamente",
-        private_key=private,
-    )
+    # Generar y guardar PIN
+    pin = str(randint(100000, 999999))
+    verification_codes[new_user.correo] = pin
 
+    # Enviar por correo
+    await send_verification_email(new_user.correo, pin)
+
+    return {
+        "message": "Usuario registrado. Verifica tu correo con el código enviado.",
+        "private_key": private,
+        "email": new_user.correo
+    }
 
 @router.get("/login/google")
 async def login_google(request: Request):
@@ -100,8 +106,9 @@ async def login_google(request: Request):
 
     return RedirectResponse(url=google_auth_url)
 
-
 import traceback
+from urllib.parse import urlencode
+from fastapi.responses import RedirectResponse
 
 @router.get("/callback")
 async def auth_callback(code: str, request: Request, db=Depends(get_db)):
@@ -136,45 +143,47 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
                 correo=email,
                 public_key=public,
                 hash=None,
-                contraseña=None,  # No password needed for OAuth users
+                contraseña=None,
                 nombre=name,
             )
             db.add(user)
             db.commit()
             db.refresh(user)
 
+
         access_token = create_access_token(data={"sub": user.correo}, expires_delta=timedelta(minutes=15))
         refresh_token = create_refresh_token(data={"sub": user.correo}, expires_delta=timedelta(days=7))
 
-        response = JSONResponse(content={
+
+        frontend_callback_url = "http://localhost:5173/auth/callback" 
+        query_params = urlencode({
             "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "name": user.nombre,
-                "email": user.correo
-            }
+            "name": user.nombre,
+            "email": user.correo,
         })
 
-        print(f"cookie: {refresh_token}")
 
-        # Guardamos el refresh_token en una cookie HttpOnly
-        response.set_cookie(
+        redirect_url = f"{frontend_callback_url}?{query_params}"
+
+        redirect_response = RedirectResponse(url=redirect_url)
+
+
+        redirect_response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=False,  # True en producción con HTTPS
+            secure=False,
             samesite="lax",
             max_age=7 * 24 * 60 * 60,
             path="/auth/refresh"
         )
 
-        return response
+        return redirect_response
 
     except Exception as e:
         print("❌ Error en /callback:")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal Server Error")
-
 
 @router.post("/refresh")
 async def refresh_token(refresh_token: str = Cookie(None), db = Depends(get_db)):
@@ -201,6 +210,17 @@ async def refresh_token(refresh_token: str = Cookie(None), db = Depends(get_db))
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid refresh token. Error: {str(e)}")
 
+@router.post("/verify-pin")
+async def verify_pin(email: EmailStr = Body(...), pin: str = Body(...)):
+    expected_pin = verification_codes.get(email)
+    if not expected_pin:
+        raise HTTPException(status_code=400, detail="No se encontró PIN para este correo.")
+    if pin != expected_pin:
+        raise HTTPException(status_code=400, detail="PIN incorrecto")
+
+    del verification_codes[email]  # eliminar después de verificar
+
+    return {"message": "Correo verificado exitosamente ✅"}
 
 @router.get("/test")
 async def test_auth(user = Depends(get_current_user)):
