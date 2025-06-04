@@ -109,7 +109,8 @@ function ChatPage() {
               const contenido = JSON.parse(msg.message);
               const clave = JSON.parse(msg.clave_aes_cifrada);
               const textoPlano = await Decrypt.descifrarTodo(clave, contenido, privateKeyPem);
-
+              setMessages((prev) => [...prev, textoPlano]);
+              
               return {
                 ...msg,
                 contenido_descifrado: textoPlano,
