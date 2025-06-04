@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { useNavigate } from "react-router-dom";
+//import * as Decrypt from "./DecryptMessage.jsx";
 
 function ChatPage() {
   const [tab, setTab] = useState(0);
@@ -63,6 +64,78 @@ function ChatPage() {
 
     getUsersData();
   }, [accessToken]);
+
+  useEffect(() => {
+    /* 
+    const privateKeyPem = `-----BEGIN EC PRIVATE KEY-----
+    MHcCAQEEINvNv5tcuMar6obxZZMTbNVS9c/BWDbTkMIjepnWN6i2oAoGCCqGSM49
+    AwEHoUQDQgAEeZIE2oYEowXL3WeJaCIkOSNVqnLeiZEkwaGfAzVyoYEOquMYOOv7
+    zItwtIp2Y0Q1mS2jTkn0qfeR1eTLmpddrA==
+    -----END EC PRIVATE KEY-----`;
+    */
+
+    const getMessagesReceived = async () => {
+      if (!activeUser) return;
+      try {
+        const response = await fetch(`http://localhost:8000/msg/message/received/${activeUser.correo}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Error al obtener los mensajes");
+        }
+        const data = await response.json();
+        console.log("Mensajes obtenidos:", data);
+        /* 
+        const mensajesDescifrados = await Promise.all(
+          data.map(async (msg) => {
+            try {
+              const contenido = JSON.parse(msg.message);
+              const clave = JSON.parse(msg.clave_aes_cifrada);
+
+              const textoPlano = await Decrypt.descifrarTodo(clave, contenido, privateKeyPem);
+
+              return {
+                ...msg,
+                contenido_descifrado: textoPlano,
+              };
+            } catch (e) {
+              console.error("Error descifrando mensaje:", e);
+              return { ...msg, contenido_descifrado: null };
+            }
+          })
+        );
+
+        console.log("Mensajes descifrados:", mensajesDescifrados);
+        */
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      }
+    };
+    getMessagesReceived();
+  }, [activeUser, accessToken]);
+
+  useEffect(() => {
+    const getMessagesSent = async () => {
+      if (!activeUser) return;
+      try {
+        const response = await fetch(`http://localhost:8000/msg/message/sent/${activeUser.correo}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Error al obtener los mensajes enviados");
+        }
+        const data = await response.json();
+        console.log("Mensajes enviados obtenidos:", data);
+      } catch (error) {
+        console.error("Error fetching sent messages:", error);
+      }
+    };
+    getMessagesSent();
+  }, [activeUser, accessToken]);
 
   const filteredUsers = users.filter((user) =>
     `${user.nombre} ${user.correo}`.toLowerCase().includes(searchTerm.toLowerCase())
