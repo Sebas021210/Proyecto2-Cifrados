@@ -18,7 +18,7 @@ class MensajeSolo(BaseModel):
 
 class GrupoCreateRequest(BaseModel):
     nombre: str
-    miembros_ids: Optional[List[int]] = []  # IDs de otros usuarios a agregar
+    miembros_ids: Optional[List[int]] = []
 
 
 class GrupoCreateResponse(BaseModel):
@@ -76,7 +76,7 @@ class MiembroDetalle(BaseModel):
     id: int
     nombre: str
     correo: str
-
+    llave_privada_cifrada: Optional[str] = None
     class Config:
         orm_mode = True
 

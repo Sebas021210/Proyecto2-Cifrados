@@ -68,6 +68,8 @@ class MiembrosGrupos(Base):
     id_grupo_fk = Column(Integer, ForeignKey('grupos.id_pk'))
     id_user_fk = Column(Integer, ForeignKey('user.id_pk'))
 
+    llave_privada_grupo_cifrada = Column(LargeBinary, nullable=True)  # NUEVO CAMPO
+
     grupo = relationship("Grupos", back_populates="miembros_grupo")
     usuario = relationship("User", backref="grupos_pertenecientes")
 
