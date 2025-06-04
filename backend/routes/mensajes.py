@@ -7,7 +7,7 @@ from backend.models.message import MessageIndividualResponse, MessageReceived, M
 from sqlalchemy.orm import Session
 from types import SimpleNamespace as Namespace
 from typing import List
-import json
+import json, os
 
 router = APIRouter()
 
@@ -47,19 +47,28 @@ def send_individual_message(
         if receptor is None:
             raise HTTPException(status_code=404, detail="User not found")
 
+        # 🔐 Leer la clave privada desde el folder
+        private_key_path = f"private_keys/{user.id_pk}_ecc_private.pem"
+        if not os.path.exists(private_key_path):
+            raise HTTPException(status_code=404, detail="Private key not found")
+
+        with open(private_key_path, "r") as f:
+            clave_privada = f.read()
+
+        # 💬 Guardar el mensaje usando la clave cargada
         new_message = guardar_mensaje_individual(
             data=Namespace(
                 id_remitente=user.id_pk,
                 id_receptor=receptor.id_pk,
                 mensaje=message_data.mensaje,
-                clave_privada_remitente=message_data.clave_privada
+                clave_privada_remitente=clave_privada,
             ),
-            algoritmo_hash=algoritmo_hash
+            algoritmo_hash=algoritmo_hash,
         )
 
         return MessageIndividualResponse(
             message=new_message["message"],
-            timestamp=new_message["timestamp"]
+            timestamp=new_message["timestamp"],
         )
 
     except ValueError as e:

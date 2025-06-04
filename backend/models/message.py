@@ -56,7 +56,6 @@ class MessageIndividualResponse(BaseModel):
 
 class MessageIndividualRequestSimplified(BaseModel):
     mensaje: str
-    clave_privada: str
 
 class MessageReceived(BaseModel):
     id: int

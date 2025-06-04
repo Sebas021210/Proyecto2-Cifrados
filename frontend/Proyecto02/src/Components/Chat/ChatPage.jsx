@@ -33,7 +33,6 @@ function ChatPage() {
 
   const handleSend = async () => {
     if (!message.trim() || !activeUser) return;
-    const clavePrivadaPem = `-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgS03ae29em727QznI\nw9ClX90HDMkT/01IXlTkNWSoc3+hRANCAARV1wOy27wMc/22OCy+EfwqoffAf+c/\nGNwXwpXMJwUXF9O0NvPhtIN6SzdW0qW6Fnp6+aOgC55kHteuDEkVb6gc\n-----END PRIVATE KEY-----`;
 
     try{
       const response = await fetch(`http://localhost:8000/msg/message/${activeUser.correo}`, {
@@ -44,12 +43,13 @@ function ChatPage() {
         },
         body: JSON.stringify({
           mensaje: message,
-          clave_privada: clavePrivadaPem,
         }),
       });
+
       if (!response.ok) {
         throw new Error("Error al enviar el mensaje");
       }
+
       const data = await response.json();
       console.log("Mensaje enviado:", data);
       setMessages((prev) => [...prev, message]);
