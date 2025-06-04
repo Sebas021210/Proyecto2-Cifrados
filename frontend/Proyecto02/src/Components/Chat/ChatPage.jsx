@@ -154,6 +154,29 @@ function ChatPage() {
     `${user.nombre} ${user.correo}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleDownloadKey = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/auth/download-private-key", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Error al descargar la llave ECC");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "llave_ecc.zip";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (error) {
+      console.error("Error downloading key:", error);
+    }
+  }
+
   return (
     <Box
       sx={{
@@ -212,8 +235,9 @@ function ChatPage() {
               mb: 1,
               "&:hover": { backgroundColor: "#B0B0B0" },
             }}
+            onClick={handleDownloadKey}
           >
-            Crear llaves ECC
+            Descargar llave ECC
           </Button>
           <Button
             fullWidth
