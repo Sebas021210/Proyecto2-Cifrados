@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -19,8 +19,10 @@ function ChatPage() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [users, setUsers] = useState([]);
 
   const navigate = useNavigate();
+  const accessToken = localStorage.getItem("access_token");
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -34,9 +36,31 @@ function ChatPage() {
     }
   };
 
-  const users = ["Usuario 1", "Usuario 2", "Usuario 3"];
+  useEffect(() => {
+    const getUsersData = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/grupos/usuarios", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Error al obtener los usuarios");
+        }
+        const data = await response.json();
+        console.log("Usuarios obtenidos:", data);
+        setUsers(data);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        setUsers([]);
+      }
+    };
+
+    getUsersData();
+  }, [accessToken]);
+
   const filteredUsers = users.filter((user) =>
-    user.toLowerCase().includes(searchTerm.toLowerCase())
+    `${user.nombre} ${user.correo}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -186,8 +210,18 @@ function ChatPage() {
                   gap: 1,
                 }}
               >
-                <Avatar src={`https://i.pravatar.cc/150?img=${i + 1}`} />
-                <Typography>{item}</Typography>
+                <Avatar
+                  alt={tab === 0 ? item.nombre : item}
+                  src="/broken-image.jpg"
+                />
+                <Box sx={{ display: "flex", flexDirection: "column" }}>
+                  <Typography variant="body1" fontWeight="bold">
+                    {tab === 0 ? item.nombre : item}
+                  </Typography>
+                  <Typography variant="subtitle2">
+                    {tab === 0 ? item.correo : ""}
+                  </Typography>
+                </Box>
               </Box>
             )
           )}
@@ -218,7 +252,7 @@ function ChatPage() {
             borderBottom: "1px solid #444",
           }}
         >
-          <Avatar src="https://i.pravatar.cc/300" />
+          <Avatar src="/broken-image.jpg" />
           <Typography variant="subtitle1" fontWeight="bold">
             Chat con Usuario 1
           </Typography>

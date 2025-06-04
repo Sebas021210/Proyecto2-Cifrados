@@ -106,9 +106,12 @@ def obtener_grupo(
 
 
 @router.get("/usuarios", response_model=List[UserListItem])
-def obtener_usuarios(session: Session = Depends(get_db)):
+def obtener_usuarios(
+    session: Session = Depends(get_db),
+    usuario_actual: User = Depends(get_current_user)
+):
     try:
-        usuarios = listar_usuarios(session)
+        usuarios = session.query(User).filter(User.id_pk != usuario_actual.id_pk).all()
         return usuarios
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener usuarios: {e}")
