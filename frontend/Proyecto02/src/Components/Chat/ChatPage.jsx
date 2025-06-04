@@ -29,6 +29,7 @@ function ChatPage() {
   const [users, setUsers] = useState([]);
   const [activeUser, setActiveUser] = useState(null);
   const [privateKeyFile, setPrivateKeyFile] = useState(null);
+  const [privateKeyPem, setPrivateKeyPem] = useState(null);
 
   const navigate = useNavigate();
   const accessToken = localStorage.getItem("access_token");
@@ -63,7 +64,7 @@ function ChatPage() {
 
       const data = await response.json();
       console.log("Mensaje enviado:", data);
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) => [...prev, { text: message, type: "sent" }]);
       setMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
@@ -72,13 +73,27 @@ function ChatPage() {
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
-    if (file) setPrivateKeyFile(file);
+    if (file) {
+      setPrivateKeyFile(file);
+      readPemFile(file);
+    }
   };
 
   const handleFileDrop = (event) => {
     event.preventDefault();
     const file = event.dataTransfer.files[0];
-    if (file) setPrivateKeyFile(file);
+    if (file) {
+      setPrivateKeyFile(file);
+      readPemFile(file);
+    }
+  };
+
+  const readPemFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPrivateKeyPem(e.target.result);
+    };
+    reader.readAsText(file);
   };
 
   const handleToggleUser = (correo) => {
@@ -125,69 +140,73 @@ function ChatPage() {
   }, [accessToken]);
 
   useEffect(() => {
-    const privateKeyPem = `-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgLf1PGaIkNFgdv8Wf\nsXRxK1xyf1tWHZzJFrr98uvjj7ihRANCAASn9jmB6VWpBh9zY+DSue1l4U6JpJW/\n2k19ZdUHja24md/M+Gb4dCby3teVctiWoMC8ih19lS8aJt1XJWDovtWm\n-----END PRIVATE KEY-----`;
-    
-    const getMessagesReceived = async () => {
-      if (!activeUser) return;
-      try {
-        const response = await fetch(`http://localhost:8000/msg/message/received/${activeUser.correo}`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        if (!response.ok) {
-          throw new Error("Error al obtener los mensajes");
-        }
-        const data = await response.json();
-        console.log("Mensajes obtenidos:", data);
+    setMessages([]);
+  }, [activeUser]);
 
-        const mensajesDescifrados = await Promise.all(
-          data.map(async (msg) => {
+  useEffect(() => {
+    const getAllMessages = async () => {
+      if (!activeUser || !privateKeyPem) return;
+
+      try {
+        // 1. Fetch recibidos
+        const resReceived = await fetch(
+          `http://localhost:8000/msg/message/received/${activeUser.correo}`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        );
+        if (!resReceived.ok) throw new Error("Error al obtener mensajes recibidos");
+        const receivedData = await resReceived.json();
+
+        const mensajesRecibidos = await Promise.all(
+          receivedData.map(async (msg) => {
             try {
               const contenido = JSON.parse(msg.message);
               const clave = JSON.parse(msg.clave_aes_cifrada);
               const textoPlano = await Decrypt.descifrarTodo(clave, contenido, privateKeyPem);
-              setMessages((prev) => [...prev, textoPlano]);
-              
               return {
-                ...msg,
-                contenido_descifrado: textoPlano,
+                text: textoPlano,
+                type: "received",
+                timestamp: msg.timestamp,
               };
             } catch (e) {
-              console.error("Error descifrando mensaje:", e);
-              return { ...msg, contenido_descifrado: null };
+              console.error("Error descifrando recibido:", e);
+              return null;
             }
           })
         );
 
-        console.log("Mensajes descifrados:", mensajesDescifrados);
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-      }
-    };
-    getMessagesReceived();
-  }, [activeUser, accessToken]);
+        // 2. Fetch enviados
+        const resSent = await fetch(
+          `http://localhost:8000/msg/message/sent/${activeUser.correo}`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        );
+        if (!resSent.ok) throw new Error("Error al obtener mensajes enviados");
+        const sentData = await resSent.json();
 
-  useEffect(() => {
-    const getMessagesSent = async () => {
-      if (!activeUser) return;
-      try {
-        const response = await fetch(`http://localhost:8000/msg/message/sent/${activeUser.correo}`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        if (!response.ok) {
-          throw new Error("Error al obtener los mensajes enviados");
-        }
-        const data = await response.json();
-        console.log("Mensajes enviados obtenidos:", data);
+        const mensajesEnviados = sentData.map((msg) => ({
+          text: msg.message,
+          type: "sent",
+          timestamp: msg.timestamp,
+        }));
+
+        // 3. Combinar, filtrar nulos y ordenar
+        const todos = [...mensajesRecibidos.filter(Boolean), ...mensajesEnviados];
+        todos.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        // 4. Guardar
+        setMessages(todos);
       } catch (error) {
-        console.error("Error fetching sent messages:", error);
+        console.error("Error obteniendo mensajes:", error);
       }
     };
-    getMessagesSent();
-  }, [activeUser, accessToken]);
+
+    // Limpiar mensajes antes de cargar nuevos al cambiar de usuario
+    setMessages([]);
+    getAllMessages();
+  }, [activeUser, accessToken, privateKeyPem]);
 
   const filteredUsers = users.filter((user) =>
     `${user.nombre} ${user.correo}`
@@ -447,19 +466,19 @@ function ChatPage() {
                 key={i}
                 sx={{
                   display: "flex",
-                  justifyContent: i % 2 === 0 ? "flex-start" : "flex-end",
+                  justifyContent: msg.type === "received" ? "flex-start" : "flex-end",
                 }}
               >
                 <Paper
                   sx={{
                     p: 1.5,
-                    backgroundColor: i % 2 === 0 ? "#E0E0E0" : "#C3C3C3",
+                    backgroundColor: msg.type === "received" ? "#E0E0E0" : "#C3C3C3",
                     color: "#000",
                     borderRadius: 4,
                     maxWidth: "70%",
                   }}
                 >
-                  {msg}
+                  {msg.text}
                 </Paper>
               </Box>
             ))
