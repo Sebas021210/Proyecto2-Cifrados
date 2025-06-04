@@ -95,6 +95,40 @@ def get_received_messages(
 
     return message_responses
 
+# Route to get received messages from a specific user
+@router.get("/message/received/{user_remitente}", response_model=List[MessageReceived])
+def get_received_messages_from_user(
+    user_remitente: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    remitente = db.query(User).filter(User.correo == user_remitente).first()
+    if remitente is None:
+        raise HTTPException(status_code=404, detail="Usuario remitente no encontrado")
+
+    messages = (
+        db.query(Mensajes)
+        .filter(Mensajes.id_receptor == user.id_pk, Mensajes.id_remitente == remitente.id_pk)
+        .order_by(Mensajes.timestamp.desc())
+        .all()
+    )
+
+    message_responses = []
+    for msg in messages:
+        message_responses.append(
+            MessageReceived(
+                id=msg.id,
+                message=msg.mensaje,
+                firma=msg.firma,
+                hash_mensaje=msg.hash_mensaje,
+                clave_aes_cifrada=msg.clave_aes_cifrada,
+                timestamp=msg.timestamp,
+                remitente=msg.remitente.correo
+            )
+        )
+
+    return message_responses
+
 # Route to  get individual messages
 @router.get("/message/sent", response_model=list[MessageReceived])
 def get_sent_messages(
@@ -112,6 +146,55 @@ def get_sent_messages(
 
             mensaje_descifrado = decrypt_message_aes(msg.mensaje, msg.clave_aes)
             hash_recalculado = calcular_hash_mensaje(mensaje_descifrado, algoritmo_hash)
+            if hash_recalculado != msg.hash_mensaje:
+                raise ValueError("Hash del mensaje no coincide")
+
+        except Exception as e:
+            mensaje_descifrado = f"ERROR: {str(e)}"
+
+        message_responses.append(
+            MessageReceived(
+                id=msg.id,
+                message=mensaje_descifrado,
+                firma=msg.firma,
+                hash_mensaje=msg.hash_mensaje,
+                clave_aes=msg.clave_aes,
+                clave_aes_cifrada=msg.clave_aes_cifrada,
+                timestamp=msg.timestamp,
+                remitente=msg.receptor.correo
+            )
+        )
+
+    return message_responses
+
+# Route to get sent messages to a specific user
+@router.get("/message/sent/{user_destino}", response_model=List[MessageReceived])
+def get_sent_messages_to_user(
+    user_destino: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    algoritmo_hash: str = "sha256"
+):
+    receptor = db.query(User).filter(User.correo == user_destino).first()
+    if receptor is None:
+        raise HTTPException(status_code=404, detail="Usuario destino no encontrado")
+
+    messages = (
+        db.query(Mensajes)
+        .filter(Mensajes.id_remitente == user.id_pk, Mensajes.id_receptor == receptor.id_pk)
+        .order_by(Mensajes.timestamp.desc())
+        .all()
+    )
+
+    message_responses = []
+    for msg in messages:
+        try:
+            if msg.clave_aes is None:
+                raise ValueError("No se encuentra la clave AES para el remitente")
+
+            mensaje_descifrado = decrypt_message_aes(msg.mensaje, msg.clave_aes)
+            hash_recalculado = calcular_hash_mensaje(mensaje_descifrado, algoritmo_hash)
+
             if hash_recalculado != msg.hash_mensaje:
                 raise ValueError("Hash del mensaje no coincide")
 
