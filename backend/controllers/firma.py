@@ -3,7 +3,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-import hashlib, base64
+import hashlib, base64, json
 import os
 
 def calcular_hash_mensaje(mensaje: str, algoritmo: str = "sha256") -> str:
@@ -14,8 +14,7 @@ def calcular_hash_mensaje(mensaje: str, algoritmo: str = "sha256") -> str:
     else:
         raise ValueError("Algoritmo de hash no soportado")
 
-def sign_message(private_key_pem: str, message: str) -> str:
-    private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
+def sign_message(private_key: ec.EllipticCurvePrivateKey, message: str) -> str:
     signature = private_key.sign(message.encode(), ec.ECDSA(hashes.SHA256()))
     return signature.hex()
 
@@ -60,8 +59,19 @@ def encrypt_message_aes(message: str, aes_key: bytes) -> dict:
         "nonce": base64.b64encode(nonce).decode()
     }
 
-def encrypt_aes_key_with_ecc(aes_key: bytes, peer_public_key_pem: str) -> dict:
-    peer_public_key = serialization.load_pem_public_key(peer_public_key_pem.encode())
+def decrypt_message_aes(mensaje_cifrado: str, clave_aes: bytes) -> str:
+    try:
+        datos = json.loads(mensaje_cifrado)
+        ciphertext = base64.b64decode(datos["ciphertext"])
+        nonce = base64.b64decode(datos["nonce"])
+
+        aesgcm = AESGCM(clave_aes)
+        mensaje_descifrado = aesgcm.decrypt(nonce, ciphertext, None)
+        return mensaje_descifrado.decode("utf-8")
+    except Exception as e:
+        raise ValueError(f"Error al descifrar mensaje AES-GCM: {e}")
+
+def encrypt_aes_key_with_ecc(aes_key: bytes, peer_public_key: ec.EllipticCurvePublicKey) -> dict:
     ephemeral_private_key = ec.generate_private_key(ec.SECP256R1())
     shared_key = ephemeral_private_key.exchange(ec.ECDH(), peer_public_key)
 
@@ -75,6 +85,7 @@ def encrypt_aes_key_with_ecc(aes_key: bytes, peer_public_key_pem: str) -> dict:
     aesgcm = AESGCM(derived_key)
     nonce = os.urandom(12)
     encrypted_key = aesgcm.encrypt(nonce, aes_key, None)
+
     ephemeral_public_key = ephemeral_private_key.public_key()
     ephemeral_pem = ephemeral_public_key.public_bytes(
         serialization.Encoding.PEM,

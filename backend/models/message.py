@@ -13,16 +13,18 @@ class VerificacionRequest(BaseModel):
 class MensajeSolo(BaseModel):
     message: str
 
+# schemas.py
 class GrupoCreateRequest(BaseModel):
     nombre: str
-    llave_publica: str
-    tipo_cifrado: str
+
 
 class GrupoCreateResponse(BaseModel):
     id_pk: int
     nombre_de_grupo: str
     tipo_cifrado: str
+    llave_privada: str
     mensaje: str
+
 
 class GrupoListItem(BaseModel):
     id_pk: int
@@ -68,14 +70,34 @@ class MessageReceived(BaseModel):
     class Config:
         orm_mode = True
 
-class GrupoDetalleResponse(BaseModel):
-    id_pk: int
-    nombre_de_grupo: str
-    tipo_cifrado: str
-    miembros: list[int]  # O lista de objetos si quieres más detalle
+class MiembroDetalle(BaseModel):
+    id: int
+    nombre: str
+    correo: str
 
     class Config:
         orm_mode = True
 
-class InvitarUsuarioRequest(BaseModel):
+
+class GrupoDetalleResponse(BaseModel):
+    id_pk: int
+    nombre_de_grupo: str
+    tipo_cifrado: str
+    miembros: list[MiembroDetalle]
+
+    class Config:
+        orm_mode = True
+
+class UserListItem(BaseModel):
+    id_pk: int
+    nombre: str
+    correo: str
+    public_key: str
+
+    class Config:
+        orm_mode = True
+
+
+class MiembroEliminarRequest(BaseModel):
+    id_grupo: int
     id_usuario: int

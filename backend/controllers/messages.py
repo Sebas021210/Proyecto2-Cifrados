@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 import os
 import hashlib
 import base64
+import json
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 from datetime import datetime
 
@@ -50,10 +51,11 @@ def guardar_mensaje_individual(data, algoritmo_hash: str = "sha256"):
             id_remitente=data.id_remitente,
             id_receptor=data.id_receptor,
             mensaje=resultado["mensaje_cifrado"],
-            clave_aes_cifrada=resultado["clave_aes_cifrada"],
+            clave_aes_cifrada=json.dumps(resultado["clave_aes_cifrada"]),
             firma=resultado["firma"],
             hash_mensaje=resultado["hash_mensaje"],
-            id_bloque=id_bloque
+            id_bloque=id_bloque,
+            clave_aes=resultado["clave_aes"],
         )
         session.add(nuevo_mensaje)
         session.commit()
@@ -70,6 +72,7 @@ def procesar_mensaje_para_envio(mensaje: str, clave_privada_pem: str, clave_publ
 
     # Cifrar mensaje con AES
     mensaje_cifrado = encrypt_message_aes(mensaje, clave_aes)
+    mensaje_cifrado_json = json.dumps(mensaje_cifrado)
 
     # Cifrar clave AES con ECC (pública del receptor)
     clave_aes_cifrada = encrypt_aes_key_with_ecc(clave_aes, public_key_receptor)
@@ -81,10 +84,11 @@ def procesar_mensaje_para_envio(mensaje: str, clave_privada_pem: str, clave_publ
     firma = sign_message(private_key, mensaje)
 
     return {
-        "mensaje_cifrado": mensaje_cifrado,
+        "mensaje_cifrado": mensaje_cifrado_json,
         "clave_aes_cifrada": clave_aes_cifrada,
         "firma": firma,
-        "hash_mensaje": hash_mensaje
+        "hash_mensaje": hash_mensaje,
+        "clave_aes": clave_aes
     }
 
 def verificar_y_descifrar_mensaje(

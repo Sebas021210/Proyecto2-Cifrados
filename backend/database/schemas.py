@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, LargeBinary
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
@@ -40,6 +40,7 @@ class Mensajes(Base):
     id_receptor = Column(Integer, ForeignKey('user.id_pk'))
     mensaje = Column(String, nullable=False)
     firma = Column(String, nullable=False)
+    clave_aes = Column(LargeBinary, nullable=True)
     clave_aes_cifrada = Column(String, nullable=False)
     hash_mensaje = Column(String, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
@@ -55,7 +56,9 @@ class Grupos(Base):
     id_pk = Column(Integer, primary_key=True, autoincrement=True)
     nombre_de_grupo = Column(String, nullable=False)
     llave_publica = Column(String, nullable=False)
-    tipo_cifrado = Column(String, nullable=False) 
+    tipo_cifrado = Column(String, nullable=False)
+
+    miembros_grupo = relationship("MiembrosGrupos", back_populates="grupo")
 
 # Tabla miembros de grupos
 class MiembrosGrupos(Base):
@@ -64,6 +67,9 @@ class MiembrosGrupos(Base):
     id_pk = Column(Integer, primary_key=True, autoincrement=True)
     id_grupo_fk = Column(Integer, ForeignKey('grupos.id_pk'))
     id_user_fk = Column(Integer, ForeignKey('user.id_pk'))
+
+    grupo = relationship("Grupos", back_populates="miembros_grupo")
+    usuario = relationship("User", backref="grupos_pertenecientes")
 
 # Tabla Mensajes Grupo
 class MensajesGrupo(Base):

@@ -1,26 +1,24 @@
 from sqlalchemy.exc import IntegrityError
-from backend.database import Grupos
+from backend.database import Grupos, User
 from backend.database import db as db_instance
 from backend.database.schemas import MiembrosGrupos, Grupos, User
 from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
 from sqlalchemy.orm import Session
 from backend.database import db, User, Mensajes, Blockchain
-from typing import List
+from typing import List, Type
 from fastapi import Depends, HTTPException
 
-def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
+
+def agregar_miembro_controller(id_grupo: int, id_usuario: int) -> dict:
     with db_instance.write() as session:
-        # Verificar que el grupo existe
         grupo = session.query(Grupos).filter(Grupos.id_pk == id_grupo).one_or_none()
         if not grupo:
             raise ValueError("El grupo no existe.")
 
-        # Verificar que el usuario existe
         usuario = session.query(User).filter(User.id_pk == id_usuario).one_or_none()
         if not usuario:
             raise ValueError("El usuario no existe.")
 
-        # Verificar si ya es miembro
         miembro_existente = session.query(MiembrosGrupos).filter(
             MiembrosGrupos.id_grupo_fk == id_grupo,
             MiembrosGrupos.id_user_fk == id_usuario
@@ -29,32 +27,30 @@ def agregar_miembro(id_grupo: int, id_usuario: int) -> MiembrosGrupos:
         if miembro_existente:
             raise ValueError("El usuario ya es miembro del grupo.")
 
-        # Crear miembro
         nuevo_miembro = MiembrosGrupos(
             id_grupo_fk=id_grupo,
             id_user_fk=id_usuario
         )
         session.add(nuevo_miembro)
-        return nuevo_miembro
+        session.flush()  # fuerza que se le asigne id_pk sin cerrar sesión
 
-def crear_grupo(session: Session, nombre: str, tipo_cifrado: str) -> Grupos:
-    tipo_cifrado = tipo_cifrado.upper()
-    cifrados_validos = ['RSA+AES', 'ECC']
-    
-    if tipo_cifrado not in cifrados_validos:
-        raise ValueError("Tipo de cifrado no válido. Opciones: RSA+AES o ECC.")
-    
-    # Generar llaves
-    if tipo_cifrado == 'RSA+AES':
-        llave_privada, llave_publica = generate_rsa_keys()
-    elif tipo_cifrado == 'ECC':
-        llave_privada, llave_publica = generate_ecc_keys()
-    
+        # Extrae los datos antes de cerrar la sesión
+        return {
+            "id_pk": nuevo_miembro.id_pk,
+            "id_grupo_fk": nuevo_miembro.id_grupo_fk,
+            "id_user_fk": nuevo_miembro.id_user_fk
+        }
+
+def crear_grupo(session: Session, nombre: str) -> tuple[Grupos, str]:
+    tipo_cifrado = 'ECC'  # Forzado
+
+    # Generar llaves ECC
+    llave_privada, llave_publica = generate_ecc_keys()
+
     grupo = Grupos(
         nombre_de_grupo=nombre,
         tipo_cifrado=tipo_cifrado,
         llave_publica=llave_publica,
-        # Opcional: puedes guardar la privada cifrada si lo deseas
     )
 
     session.add(grupo)
@@ -64,7 +60,7 @@ def crear_grupo(session: Session, nombre: str, tipo_cifrado: str) -> Grupos:
         session.rollback()
         raise ValueError("Error: Ya existe un grupo con este nombre.")
 
-    return grupo
+    return grupo, llave_privada
 
 
 def listar_grupos(session: Session, user_id: int) -> List[Grupos]:
@@ -78,9 +74,12 @@ def listar_grupos(session: Session, user_id: int) -> List[Grupos]:
 
     return grupos
 
+from sqlalchemy.orm import joinedload
+
 def obtener_detalles_grupo(session: Session, grupo_id: int, user_id: int) -> Grupos:
     grupo = (
         session.query(Grupos)
+        .options(joinedload(Grupos.miembros_grupo).joinedload(MiembrosGrupos.usuario))
         .join(MiembrosGrupos)
         .filter(Grupos.id_pk == grupo_id, MiembrosGrupos.id_user_fk == user_id)
         .first()
@@ -91,32 +90,19 @@ def obtener_detalles_grupo(session: Session, grupo_id: int, user_id: int) -> Gru
 
     return grupo
 
-def invitar_usuario_a_grupo(
-    session: Session, id_grupo: int, id_usuario_invitado: int, id_usuario_que_invita: int
-) -> None:
-    # Verificar que quien invita es miembro del grupo
-    miembro = session.query(MiembrosGrupos).filter_by(
-        id_grupo_fk=id_grupo,
-        id_user_fk=id_usuario_que_invita
-    ).first()
 
-    if not miembro:
-        raise HTTPException(status_code=403, detail="No tienes permiso para invitar a este grupo.")
 
-    # Verificar que el usuario a invitar no esté ya en el grupo
-    ya_miembro = session.query(MiembrosGrupos).filter_by(
-        id_grupo_fk=id_grupo,
-        id_user_fk=id_usuario_invitado
-    ).first()
+def listar_usuarios(session: Session) -> list[Type[User]]:
+    return session.query(User).all()
 
-    if ya_miembro:
-        raise HTTPException(status_code=409, detail="El usuario ya es miembro del grupo.")
+def eliminar_miembro_controller(id_grupo: int, id_usuario: int):
+    with db_instance.write() as session:
+        miembro = session.query(MiembrosGrupos).filter(
+            MiembrosGrupos.id_grupo_fk == id_grupo,
+            MiembrosGrupos.id_user_fk == id_usuario
+        ).first()
 
-    # Agregar al nuevo miembro
-    nuevo_miembro = MiembrosGrupos(
-        id_grupo_fk=id_grupo,
-        id_user_fk=id_usuario_invitado
-    )
-    session.add(nuevo_miembro)
-    session.commit()
+        if not miembro:
+            raise ValueError("El usuario no es miembro del grupo o ya fue eliminado.")
 
+        session.delete(miembro)

@@ -8,7 +8,7 @@ from backend.routes.grupos import router as grupos_router
 from backend.routes.firmas import router as firmas_router
 
 app = FastAPI(
-    title="Cifrados: Laboratorio 4",
+    title="Cifrados: Proyecto 2 - Blockchain y Cifrado",
 )
 
 origins = ["*"]
