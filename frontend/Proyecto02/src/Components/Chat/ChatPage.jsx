@@ -44,7 +44,7 @@ function ChatPage() {
   };
 
   const handleSend = async () => {
-    if (!message.trim() || !activeUser) return;
+    if (!message.trim() || !activeUser || !privateKeyPem) return;
 
     try{
       const response = await fetch(`http://localhost:8000/msg/message/${activeUser.correo}`, {
@@ -55,6 +55,7 @@ function ChatPage() {
         },
         body: JSON.stringify({
           mensaje: message,
+          clave_privada_pem: privateKeyPem,
         }),
       });
 
@@ -64,7 +65,15 @@ function ChatPage() {
 
       const data = await response.json();
       console.log("Mensaje enviado:", data);
-      setMessages((prev) => [...prev, { text: message, type: "sent" }]);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: message,
+          type: "sent",
+        },
+      ]);
+
       setMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
@@ -214,29 +223,6 @@ function ChatPage() {
       .includes(searchTerm.toLowerCase())
   );
 
-  const handleDownloadKey = async () => {
-    try {
-      const response = await fetch("http://localhost:8000/auth/download-private-key", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error("Error al descargar la llave ECC");
-      }
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "llave_ecc.zip";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch (error) {
-      console.error("Error downloading key:", error);
-    }
-  }
-
   return (
     <Box
       sx={{
@@ -283,22 +269,6 @@ function ChatPage() {
           >
             Acciones
           </Typography>
-          <Button
-            fullWidth
-            variant="contained"
-            sx={{
-              backgroundColor: "white",
-              color: "#000",
-              fontWeight: "bold",
-              borderRadius: 2,
-              textTransform: "none",
-              mb: 1,
-              "&:hover": { backgroundColor: "#B0B0B0" },
-            }}
-            onClick={handleDownloadKey}
-          >
-            Descargar llave ECC
-          </Button>
           <Button
             fullWidth
             variant="contained"

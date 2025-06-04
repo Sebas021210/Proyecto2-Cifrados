@@ -66,6 +66,18 @@ function LoginForm() {
     }
   };
 
+  const downloadPrivateKey = (privateKey, filename = "clave_privada.pem") => {
+    const blob = new Blob([privateKey], { type: "application/x-pem-file" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleRegister = async () => {
     try {
       const fullName = `${nombre} ${apellido}`;
@@ -75,9 +87,17 @@ function LoginForm() {
         name: fullName,
       });
 
+      const { private_key, email } = response.data;
+
+      if (private_key) {
+        const emailParts = email.split("@");
+        const filename = `${emailParts[0]}_clave_privada.pem`;
+        downloadPrivateKey(private_key, filename);
+      }
+
       setPendingEmail(emailRegister);
       setShowPinModal(true); // abrir modal
-      alert("Revisa tu correo para el PIN");
+      alert("Revisa tu correo para el PIN ✅ y guarda tu clave privada 🔐");
     } catch (error) {
       console.error(
         "Error en registro:",
