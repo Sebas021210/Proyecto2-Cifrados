@@ -5,6 +5,8 @@
 */.vite
 */temp
 
+private_keys
+
 ### react template
 .DS_*
 *.log
