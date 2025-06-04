@@ -20,6 +20,7 @@ function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [users, setUsers] = useState([]);
+  const [activeUser, setActiveUser] = useState(null);
 
   const navigate = useNavigate();
   const accessToken = localStorage.getItem("access_token");
@@ -50,6 +51,10 @@ function ChatPage() {
         const data = await response.json();
         console.log("Usuarios obtenidos:", data);
         setUsers(data);
+        if (data.length > 0) {
+          setActiveUser(data[0]);
+        }
+
       } catch (error) {
         console.error("Error fetching users:", error);
         setUsers([]);
@@ -208,7 +213,14 @@ function ChatPage() {
                   alignItems: "center",
                   mb: 2,
                   gap: 1,
+                  cursor: "pointer",
+                  backgroundColor: activeUser?.id_pk === item.id_pk ? "#2a2a2a" : "transparent",
+                  borderRadius: 1,
+                  px: 1,
+                  py: 0.5,
+                  "&:hover": { backgroundColor: "#333" },
                 }}
+                onClick={() => setActiveUser(item)}
               >
                 <Avatar
                   alt={tab === 0 ? item.nombre : item}
@@ -252,9 +264,12 @@ function ChatPage() {
             borderBottom: "1px solid #444",
           }}
         >
-          <Avatar src="/broken-image.jpg" />
+          <Avatar
+            alt={activeUser ? activeUser.nombre : "Usuario"}
+            src="/broken-image.jpg"
+          />
           <Typography variant="subtitle1" fontWeight="bold">
-            Chat con Usuario 1
+            {activeUser ? activeUser.nombre : "Selecciona un usuario"}
           </Typography>
         </Box>
 
