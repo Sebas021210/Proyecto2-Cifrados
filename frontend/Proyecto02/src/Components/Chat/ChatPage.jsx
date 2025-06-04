@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { useNavigate } from "react-router-dom";
-//import * as Decrypt from "./DecryptMessage.jsx";
+import * as Decrypt from "./DecryptMessage.jsx";
 
 function ChatPage() {
   const [tab, setTab] = useState(0);
@@ -31,10 +31,31 @@ function ChatPage() {
     navigate("/", { replace: true }); // redirige al login y borra el historial
   };
 
-  const handleSend = () => {
-    if (message.trim()) {
-      setMessages([...messages, message]);
+  const handleSend = async () => {
+    if (!message.trim() || !activeUser) return;
+    const clavePrivadaPem = `-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgS03ae29em727QznI\nw9ClX90HDMkT/01IXlTkNWSoc3+hRANCAARV1wOy27wMc/22OCy+EfwqoffAf+c/\nGNwXwpXMJwUXF9O0NvPhtIN6SzdW0qW6Fnp6+aOgC55kHteuDEkVb6gc\n-----END PRIVATE KEY-----`;
+
+    try{
+      const response = await fetch(`http://localhost:8000/msg/message/${activeUser.correo}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          mensaje: message,
+          clave_privada: clavePrivadaPem,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Error al enviar el mensaje");
+      }
+      const data = await response.json();
+      console.log("Mensaje enviado:", data);
+      setMessages((prev) => [...prev, message]);
       setMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
     }
   };
 
@@ -66,14 +87,8 @@ function ChatPage() {
   }, [accessToken]);
 
   useEffect(() => {
-    /* 
-    const privateKeyPem = `-----BEGIN EC PRIVATE KEY-----
-    MHcCAQEEINvNv5tcuMar6obxZZMTbNVS9c/BWDbTkMIjepnWN6i2oAoGCCqGSM49
-    AwEHoUQDQgAEeZIE2oYEowXL3WeJaCIkOSNVqnLeiZEkwaGfAzVyoYEOquMYOOv7
-    zItwtIp2Y0Q1mS2jTkn0qfeR1eTLmpddrA==
-    -----END EC PRIVATE KEY-----`;
-    */
-
+    const privateKeyPem = `-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgLf1PGaIkNFgdv8Wf\nsXRxK1xyf1tWHZzJFrr98uvjj7ihRANCAASn9jmB6VWpBh9zY+DSue1l4U6JpJW/\n2k19ZdUHja24md/M+Gb4dCby3teVctiWoMC8ih19lS8aJt1XJWDovtWm\n-----END PRIVATE KEY-----`;
+    
     const getMessagesReceived = async () => {
       if (!activeUser) return;
       try {
@@ -87,13 +102,12 @@ function ChatPage() {
         }
         const data = await response.json();
         console.log("Mensajes obtenidos:", data);
-        /* 
+
         const mensajesDescifrados = await Promise.all(
           data.map(async (msg) => {
             try {
               const contenido = JSON.parse(msg.message);
               const clave = JSON.parse(msg.clave_aes_cifrada);
-
               const textoPlano = await Decrypt.descifrarTodo(clave, contenido, privateKeyPem);
 
               return {
@@ -108,7 +122,6 @@ function ChatPage() {
         );
 
         console.log("Mensajes descifrados:", mensajesDescifrados);
-        */
       } catch (error) {
         console.error("Error fetching messages:", error);
       }
