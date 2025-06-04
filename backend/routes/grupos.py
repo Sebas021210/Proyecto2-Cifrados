@@ -18,22 +18,34 @@ async def crear_grupo_endpoint(
     session: Session = Depends(get_db)
 ):
     try:
+        # Crear el grupo y generar llaves
         grupo, llave_privada = crear_grupo(
             session=session,
             nombre=request.nombre,
         )
 
-        # ✅ Agregar automáticamente al creador como miembro del grupo
+        # ✅ Agregar al creador como miembro del grupo
         with db.write() as write_session:
             agregar_miembro_controller(
                 id_grupo=grupo.id_pk,
-                id_usuario=user.id_pk,
+                id_usuario=user.id_pk
             )
+
+            # ✅ Agregar los demás miembros, si vienen en el request
+            for miembro_id in request.miembros_ids:
+                # Evitar agregar dos veces al mismo usuario
+                if miembro_id != user.id_pk:
+                    try:
+                        agregar_miembro_controller(
+                            id_grupo=grupo.id_pk,
+                            id_usuario=miembro_id
+                        )
+                    except ValueError as ve:
+                        # Si el usuario ya estaba agregado, solo omitir (no levantar error)
+                        print(f"Advertencia: {ve}")
 
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
-    except IntegrityError:
-        raise HTTPException(status_code=409, detail="Ya existe un grupo con este nombre.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creando grupo: {e}")
 
@@ -42,8 +54,9 @@ async def crear_grupo_endpoint(
         nombre_de_grupo=grupo.nombre_de_grupo,
         tipo_cifrado=grupo.tipo_cifrado,
         llave_privada=llave_privada,
-        mensaje="Grupo creado con éxito y te agregaste como miembro."
+        mensaje="Grupo creado exitosamente."
     )
+
 
 
 @router.post("/miembros", response_model=MiembroAgregarResponse, status_code=201)

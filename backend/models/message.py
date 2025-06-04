@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional, List
 
 class FirmaRequest(BaseModel):
     private_key: str
@@ -14,8 +15,10 @@ class MensajeSolo(BaseModel):
     message: str
 
 # schemas.py
+
 class GrupoCreateRequest(BaseModel):
     nombre: str
+    miembros_ids: Optional[List[int]] = []  # IDs de otros usuarios a agregar
 
 
 class GrupoCreateResponse(BaseModel):
