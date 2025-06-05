@@ -19,7 +19,9 @@ Accept: application/json
   "password": "test1234"
 }
 
-> {% client.global.set("token", response.body.access_token) %}
+> {%
+    client.global.set("token", response.body.access_token)
+%}
 
 ### Test Authenticated Endpoint
 GET localhost:8000/auth/test
@@ -40,6 +42,12 @@ Authorization: Bearer {{ token }}
 
 ### Get transactions
 GET localhost:8000/blockchain/transactions
+Authorization: Bearer {{ token }}
+Content-Type: application/json
+Accept: application/json
+
+### Verify integrity of a transaction
+GET localhost:8000/blockchain/transactions/integridad
 Authorization: Bearer {{ token }}
 Content-Type: application/json
 Accept: application/json
