@@ -59,7 +59,7 @@ function ChatPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/msg/message/${activeUser.correo}`,
+        `https://cf-backend.albrand.tech/msg/message/${activeUser.correo}`,
         {
           method: "POST",
           headers: {
@@ -143,7 +143,7 @@ function ChatPage() {
         .filter((id) => id !== null);
 
       const responseGrupo = await fetch(
-        "http://localhost:8000/grupos/newGroup",
+        "https://cf-backend.albrand.tech/grupos/newGroup",
         {
           method: "POST",
           headers: {
@@ -178,7 +178,7 @@ function ChatPage() {
   const handleOpenGroupDetails = async (grupoId) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/grupos/GroupDetails/${grupoId}`,
+        `https://cf-backend.albrand.tech/grupos/GroupDetails/${grupoId}`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -205,7 +205,7 @@ function ChatPage() {
     if (!confirm) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/grupos/miembros`, {
+      const response = await fetch(`https://cf-backend.albrand.tech/grupos/miembros`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -341,7 +341,7 @@ function ChatPage() {
   useEffect(() => {
     const getUsersData = async () => {
       try {
-        const response = await fetch("http://localhost:8000/grupos/usuarios", {
+        const response = await fetch("https://cf-backend.albrand.tech/grupos/usuarios", {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -373,7 +373,7 @@ function ChatPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:8000/grupos/group/message/${activeGroup.id_pk}`,
+        `https://cf-backend.albrand.tech/grupos/group/message/${activeGroup.id_pk}`,
         {
           method: "POST",
           headers: {
@@ -415,7 +415,7 @@ function ChatPage() {
       try {
         // 1. Fetch recibidos
         const resReceived = await fetch(
-          `http://localhost:8000/msg/message/received/${activeUser.correo}`,
+          `https://cf-backend.albrand.tech/msg/message/received/${activeUser.correo}`,
           {
             headers: { Authorization: `Bearer ${accessToken}` },
           }
@@ -448,7 +448,7 @@ function ChatPage() {
 
         // 2. Fetch enviados
         const resSent = await fetch(
-          `http://localhost:8000/msg/message/sent/${activeUser.correo}`,
+          `https://cf-backend.albrand.tech/msg/message/sent/${activeUser.correo}`,
           {
             headers: { Authorization: `Bearer ${accessToken}` },
           }
@@ -490,7 +490,7 @@ function ChatPage() {
   useEffect(() => {
     const fetchGrupos = async () => {
       try {
-        const response = await fetch("http://localhost:8000/grupos/getGroups", {
+        const response = await fetch("https://cf-backend.albrand.tech/grupos/getGroups", {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
