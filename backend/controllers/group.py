@@ -178,6 +178,8 @@ def obtener_mensajes_de_grupo(grupo_id: int, user_id: int, db: Session) -> List[
             id_transaccion=m.id_transacciones_pk,
             remitente=m.remitente.correo,
             mensaje=m.mensaje,
+            nonce=m.nonce,
+            clave_aes_cifrada=m.clave_aes_cifrada,
             firma=m.firma,
             timestamp=m.timestamp.isoformat()
         )
