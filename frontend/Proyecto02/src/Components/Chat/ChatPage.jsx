@@ -228,6 +228,116 @@ function ChatPage() {
     }
   };
 
+  const fetchGroupMessages = async (grupo = activeGroup) => {
+    if (!grupo || !privateKeyPem) return;
+
+    try {
+      const resMsgs = await fetch(
+        `http://localhost:8000/grupos/GroupMessages/${grupo.id_pk}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      if (!resMsgs.ok) throw new Error("Error al obtener mensajes del grupo");
+      const mensajes = await resMsgs.json();
+
+      const resClave = await fetch(
+        "http://localhost:8000/grupos/descifrar_llave_privada",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            group_id: grupo.id_pk,
+            user_private_key_pem: privateKeyPem,
+          }),
+        }
+      );
+      if (!resClave.ok)
+        throw new Error("Error al descifrar la llave privada del grupo");
+
+      const { llave_privada_grupo } = await resClave.json();
+
+      const mensajesDescifrados = await Promise.all(
+        mensajes.map(async (msg) => {
+          try {
+            let claveParsed = msg.clave_aes_cifrada;
+            if (typeof claveParsed === "string") {
+              claveParsed = JSON.parse(claveParsed);
+            }
+
+            const resDescifrado = await fetch(
+              "http://localhost:8000/grupos/descifrar_mensaje_grupo",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({
+                  mensaje_cifrado: msg.mensaje,
+                  nonce: msg.nonce,
+                  clave_aes_cifrada: claveParsed,
+                  private_key_grupo_pem: llave_privada_grupo,
+                }),
+              }
+            );
+
+            if (!resDescifrado.ok) {
+              const errMsg = await resDescifrado.text();
+              console.error("❌ Backend error:", errMsg);
+              throw new Error("Error al descifrar mensaje");
+            }
+
+            const { mensaje_plano } = await resDescifrado.json();
+
+            const remitente = users.find(
+              (u) => u.id_pk === msg.id_remitente_fk
+            );
+            const remitenteNombre = remitente
+              ? remitente.nombre
+              : "Desconocido";
+
+            return {
+              text: `${remitenteNombre}: ${mensaje_plano}`,
+              type:
+                msg.id_remitente_fk === remitente?.id_pk &&
+                remitente?.correo === activeUser?.correo
+                  ? "sent"
+                  : "received",
+              timestamp: msg.timestamp,
+            };
+          } catch (e) {
+            console.error("❌ Error descifrando mensaje grupal:", e);
+            return null;
+          }
+        })
+      );
+
+      setGroupMessages(mensajesDescifrados.filter(Boolean));
+    } catch (error) {
+      console.error("❌ Error al obtener mensajes grupales:", error);
+    }
+  };
+
+  useEffect(() => {
+    setGroupMessages([]);
+    if (activeGroup && privateKeyPem) {
+      fetchGroupMessages();
+    }
+  }, [activeGroup, privateKeyPem]);
+
+  useEffect(() => {
+    if (activeGroup && privateKeyPem) {
+      console.log("🔁 Cambio de grupo detectado:", activeGroup.nombre_de_grupo);
+      fetchGroupMessages();
+    }
+  }, [activeGroup, privateKeyPem]);
+
   useEffect(() => {
     const getUsersData = async () => {
       try {
