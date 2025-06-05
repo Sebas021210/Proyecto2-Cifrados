@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session
 
 from backend.database import get_db, User
 
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+
+# Crear una instancia del hasher
+ph = PasswordHasher()
+
 
 SECRET_KEY = "clave_secreta_super_segura"
 ALGORITHM = "HS256"
@@ -56,5 +62,13 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def hash_password(password: str) -> str:
-    """Hashea la contraseña con SHA-256."""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hashea la contraseña con Argon2."""
+    return ph.hash(password)
+
+def verify_password(hashed_password: str, password: str) -> bool:
+    """Verifica una contraseña contra el hash."""
+    try:
+        ph.verify(hashed_password, password)
+        return True
+    except VerifyMismatchError:
+        return False

@@ -10,9 +10,14 @@ from backend.controllers.keys import generate_ecc_keys
 from backend.database import User, get_db
 from backend.models.responses import SuccessfulRegisterResponse
 from backend.models.user import LoginRequest, RegisterRequest
-from backend.utils.auth import create_access_token, create_refresh_token, SECRET_KEY, ALGORITHM, hash_password, get_current_user
+from backend.utils.auth import (
+    create_access_token, create_refresh_token,
+    SECRET_KEY, ALGORITHM,
+    hash_password, verify_password,
+    get_current_user
+)
 from random import randint
-from backend.utils.email_config import send_verification_email  # importa la función
+from backend.utils.email_config import send_verification_email
 from pydantic import BaseModel, EmailStr
 from fastapi import Body
 from sqlalchemy.orm import Session
@@ -32,7 +37,7 @@ async def login(login_request: LoginRequest, db=Depends(get_db)):
     """
     user = db.query(User).filter(User.correo == login_request.email).first()
 
-    if not user or not user.contraseña or user.contraseña != hash_password(login_request.password):
+    if not user or not user.contraseña or not verify_password(user.contraseña, login_request.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(data={"sub": user.correo}, expires_delta=timedelta(minutes=15))
