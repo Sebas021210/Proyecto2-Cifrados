@@ -57,3 +57,8 @@ GET localhost:8000/blockchain/transactions/integridad-grupal
 Authorization: Bearer {{ token }}
 Content-Type: application/json
 Accept: application/json
+
+### Clear
+POST localhost:8000/dev/clear-db
+Content-Type: application/json
+Accept: application/json
