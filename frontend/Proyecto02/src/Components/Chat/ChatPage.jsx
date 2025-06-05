@@ -44,6 +44,10 @@ function ChatPage() {
   const [miembrosGrupo, setMiembrosGrupo] = useState([]);
   const [grupoActual, setGrupoActual] = useState(null);
   const [grupoActualId, setGrupoActualId] = useState(null);
+  const [activeGroup, setActiveGroup] = useState(null);
+  const [groupMessages, setGroupMessages] = useState([]); // mensajes grupales
+
+  const mensajesVisibles = activeGroup ? groupMessages : messages;
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -253,6 +257,46 @@ function ChatPage() {
   useEffect(() => {
     setMessages([]);
   }, [activeUser]);
+
+  const handleSendGroupMessage = async () => {
+    if (!message.trim() || !activeGroup || !privateKeyPem) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:8000/grupos/group/message/${activeGroup.id_pk}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            mensaje: message,
+            clave_privada_usuario_pem: privateKeyPem,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Error al enviar mensaje grupal: ${errText}`);
+      }
+
+      // Añadir el mensaje nuevo al chat de grupo
+      setGroupMessages((prev) => [
+        ...prev,
+        {
+          text: message,
+          type: "sent",
+        },
+      ]);
+
+      setMessage("");
+    } catch (error) {
+      console.error("Error enviando mensaje grupal:", error);
+      alert(error.message);
+    }
+  };
 
   useEffect(() => {
     const getAllMessages = async () => {
@@ -502,6 +546,10 @@ function ChatPage() {
                 onClick={() => {
                   if (tab === 0) {
                     setActiveUser(item);
+                    setActiveGroup(null); // asegurarte de limpiar el grupo
+                  } else {
+                    setActiveGroup(item); // <- aquí está el cambio principal
+                    setActiveUser(null); // opcional: limpiar usuario si se va a grupo
                   }
                 }}
               >
@@ -566,10 +614,13 @@ function ChatPage() {
             src="/broken-image.jpg"
           />
           <Typography variant="subtitle1" fontWeight="bold">
-            {activeUser ? activeUser.nombre : "Selecciona un usuario"}
+            {activeUser
+              ? activeUser.nombre
+              : activeGroup
+              ? activeGroup.nombre_de_grupo
+              : "Selecciona un usuario o grupo"}
           </Typography>
         </Box>
-
         {/* MENSAJES */}
         <Box
           sx={{
@@ -582,12 +633,12 @@ function ChatPage() {
             backgroundColor: "#fff",
           }}
         >
-          {messages.length === 0 ? (
+          {mensajesVisibles.length === 0 ? (
             <Typography color="#888" textAlign="center">
               No hay mensajes aún
             </Typography>
           ) : (
-            messages.map((msg, i) => (
+            mensajesVisibles.map((msg, i) => (
               <Box
                 key={i}
                 sx={{
@@ -612,7 +663,6 @@ function ChatPage() {
             ))
           )}
         </Box>
-
         {/* INPUT MENSAJE */}
         <Box
           sx={{
@@ -638,7 +688,7 @@ function ChatPage() {
           />
           <Button
             variant="contained"
-            onClick={handleSend}
+            onClick={activeGroup ? handleSendGroupMessage : handleSend}
             sx={{
               backgroundColor: "#1F1F1F",
               color: "white",
