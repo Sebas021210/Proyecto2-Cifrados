@@ -1,6 +1,7 @@
 from sqlalchemy.exc import IntegrityError
 from backend.database import db as db_instance
 from backend.database.schemas import MiembrosGrupos, Grupos, User, MensajesGrupo
+from backend.models.message import MensajeGrupoResponse
 from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
 from sqlalchemy.orm import Session
 from backend.database import db, User, Mensajes, Blockchain
@@ -153,3 +154,32 @@ def encrypt_aes_key_with_public_key(aes_key: bytes, public_key_pem: str) -> str:
     }
 
     return json.dumps(payload)
+
+
+def obtener_mensajes_de_grupo(grupo_id: int, user_id: int, db: Session) -> List[MensajeGrupoResponse]:
+    # Verificar si el usuario pertenece al grupo
+    miembro = db.query(MiembrosGrupos).filter_by(
+        id_grupo_fk=grupo_id,
+        id_user_fk=user_id
+    ).first()
+
+    if not miembro:
+        raise HTTPException(status_code=403, detail="No tienes acceso a este grupo")
+
+    mensajes = (
+        db.query(MensajesGrupo)
+        .filter(MensajesGrupo.id_grupo_fk == grupo_id)
+        .order_by(MensajesGrupo.timestamp.asc())
+        .all()
+    )
+
+    return [
+        MensajeGrupoResponse(
+            id_transaccion=m.id_transacciones_pk,
+            remitente=m.remitente.correo,
+            mensaje=m.mensaje,
+            firma=m.firma,
+            timestamp=m.timestamp.isoformat()
+        )
+        for m in mensajes
+    ]

@@ -3,8 +3,8 @@ from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
 from backend.utils.auth import get_current_user
 from backend.controllers.keys import cifrar_con_ecdh_aes
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest, GroupMessageRequest
-from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios, eliminar_miembro_controller, encrypt_aes_key_with_public_key
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest, GroupMessageRequest, MensajeGrupoResponse
+from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios, eliminar_miembro_controller, encrypt_aes_key_with_public_key, obtener_mensajes_de_grupo
 from backend.database import get_db, User, db, MiembrosGrupos, MensajesGrupo, Grupos
 from sqlalchemy.orm import Session
 from typing import List
@@ -272,7 +272,7 @@ def enviar_mensaje_grupo(
     nonce_mensaje = cifrado["nonce"]
 
     # 6. Cifrar clave AES con clave pública del grupo (ECIES)
-    clave_aes_cifrada_json = encrypt_aes_key_with_public_key(clave_aes, grupo.clave_publica_grupo)
+    clave_aes_cifrada_json = encrypt_aes_key_with_public_key(clave_aes, grupo.llave_publica)
 
     # 7. Calcular hash SHA-256 del mensaje plano para integridad
     hash_mensaje = hashes.Hash(hashes.SHA256())
@@ -294,3 +294,11 @@ def enviar_mensaje_grupo(
     session.commit()
 
     return {"msg": "Mensaje grupal enviado correctamente"}
+
+@router.get("/GroupMessages/{grupo_id}", response_model=List[MensajeGrupoResponse])
+def obtener_mensajes_grupo(
+    grupo_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return obtener_mensajes_de_grupo(grupo_id, user.id_pk, db)

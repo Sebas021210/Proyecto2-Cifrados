@@ -108,3 +108,10 @@ class MiembroEliminarRequest(BaseModel):
 class GroupMessageRequest(BaseModel):
     mensaje: str
     clave_privada_usuario_pem: str  # PEM para firmar mensaje plano
+
+class MensajeGrupoResponse(BaseModel):
+    id_transaccion: int
+    remitente: str
+    mensaje: str  # ⚠️ mensaje cifrado
+    firma: str
+    timestamp: str
