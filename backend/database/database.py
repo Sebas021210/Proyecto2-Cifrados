@@ -76,6 +76,15 @@ class Database:
         finally:
             session.close()
 
+    def clear(self):
+        """
+        Elimina todas las tablas de la base de datos y las vuelve a crear.
+        """
+        with self.write() as session:
+            Base.metadata.drop_all(self.engine)
+            Base.metadata.create_all(self.engine)
+            logger.info("Todas las tablas han sido eliminadas y recreadas.")
+
 if __name__ == "__main__":
     current_directory = os.path.dirname(os.path.abspath(__file__))
     db = Database(f"{current_directory}/example.db")
