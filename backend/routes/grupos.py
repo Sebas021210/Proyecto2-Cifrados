@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
 from backend.utils.auth import get_current_user
 from backend.controllers.keys import cifrar_con_ecdh_aes
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest, GroupMessageRequest, MensajeGrupoResponse,MiembroDetalleMono
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest, GroupMessageRequest, MensajeGrupoResponse,MiembroDetalleMono, DescifrarRequest, DescifrarResponse
 from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios, eliminar_miembro_controller, encrypt_aes_key_with_public_key, obtener_mensajes_de_grupo
 from backend.database import get_db, User, db, MiembrosGrupos, MensajesGrupo, Grupos
 from sqlalchemy.orm import Session
@@ -16,6 +16,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import base64
 import os
+from base64 import b64decode
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 
 router = APIRouter()
@@ -302,3 +304,87 @@ def obtener_mensajes_grupo(
     user: User = Depends(get_current_user),
 ):
     return obtener_mensajes_de_grupo(grupo_id, user.id_pk, db)
+
+@router.get("/public_key/{grupo_id}")
+def obtener_clave_publica_grupo(
+    grupo_id: int,
+    session: Session = Depends(get_db),
+    user: UserBase = Depends(get_current_user)
+):
+    # Verificar que el usuario es miembro del grupo
+    miembro = session.query(MiembrosGrupos).filter_by(
+        id_grupo_fk=grupo_id,
+        id_user_fk=user.id_pk
+    ).first()
+
+    if not miembro:
+        raise HTTPException(status_code=403, detail="No tienes acceso a este grupo.")
+
+    # Obtener grupo y su clave pública
+    grupo = session.query(Grupos).filter_by(id_pk=grupo_id).first()
+    if not grupo or not grupo.llave_publica:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado o no tiene clave pública.")
+
+    return {"public_key": grupo.llave_publica}
+
+
+@router.post("/descifrar_llave_privada", response_model=DescifrarResponse)
+def descifrar_llave_privada_grupo(
+    request: DescifrarRequest,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_db)
+):
+    # 1. Obtener el miembro del grupo para el usuario actual
+    miembro = session.query(MiembrosGrupos).filter_by(
+        id_grupo_fk=request.group_id,
+        id_user_fk=user.id_pk
+    ).first()
+
+    if not miembro:
+        raise HTTPException(status_code=403, detail="No tienes acceso a este grupo.")
+
+    if not miembro.llave_privada_grupo_cifrada or not miembro.grupo.llave_publica:
+        raise HTTPException(status_code=404, detail="Datos de llave no encontrados.")
+
+    try:
+        # 2. Cargar llave privada usuario (PEM)
+        user_priv_key = serialization.load_pem_private_key(
+            request.user_private_key_pem.encode('utf-8'),
+            password=None
+        )
+
+        # 3. Cargar llave pública del grupo (PEM)
+        grupo_pub_key = serialization.load_pem_public_key(
+            miembro.grupo.llave_publica.encode('utf-8')
+        )
+
+        # 4. Preparar datos cifrados: puede ser bytes o base64 string
+        encrypted_data = miembro.llave_privada_grupo_cifrada
+
+        # Si es str, asumir base64 y decodificar
+        if isinstance(encrypted_data, str):
+            encrypted_data = b64decode(encrypted_data)
+
+        # Extraer nonce (12 bytes) y ciphertext
+        nonce = encrypted_data[:12]
+        ciphertext = encrypted_data[12:]
+
+        # 5. Derivar clave simétrica con ECDH + HKDF
+        shared_key = user_priv_key.exchange(ec.ECDH(), grupo_pub_key)
+        derived_key = HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=None,
+            info=b'grupo-key-ecdh'
+        ).derive(shared_key)
+
+        # 6. Descifrar con AES-GCM
+        aesgcm = AESGCM(derived_key)
+        decrypted = aesgcm.decrypt(nonce, ciphertext, None)
+
+        llave_privada_grupo = decrypted.decode('utf-8')
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error descifrando llave: {e}")
+
+    return DescifrarResponse(llave_privada_grupo=llave_privada_grupo)

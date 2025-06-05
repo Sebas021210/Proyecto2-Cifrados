@@ -125,3 +125,10 @@ class MensajeGrupoResponse(BaseModel):
     clave_aes_cifrada: str
     firma: str
     timestamp: str
+
+class DescifrarRequest(BaseModel):
+    group_id: int
+    user_private_key_pem: str  # La llave privada PEM del usuario
+
+class DescifrarResponse(BaseModel):
+    llave_privada_grupo: str
