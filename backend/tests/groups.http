@@ -81,12 +81,12 @@ Accept: application/json
 ### Enviar mensaje al grupo
 POST http://localhost:8000/grupos/group/message/{{ grupo_id }}
 Content-Type: application/json
-Authorization: Bearer {{ token_alice }}
+Authorization: Bearer {{ token_bob }}
 Accept: application/json
 
 {
   "mensaje": "Este es un mensaje secreto para el grupo",
-  "clave_privada_usuario_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgCcDc6wrKcRVF7Uef\n85L1QRkvuby9u3JB4JNduf0J8fShRANCAAT2nJAOqRB7JJSJcFhcQGtlSXj6NZW/\nVZEzGC66MGZOrjlE0dT/mE/qpKDCY4yQNnriaSYQVBQJwNPU135nMG2U\n-----END PRIVATE KEY-----\n"
+  "clave_privada_usuario_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg2k7Ok0+zUX+HG0el\nJFwVa/i5qp+quM2TvF6V98c12fehRANCAAQCpHmdP2dLW1+CbjrttcST5J9/VdAR\noK0+GpgqW5lCUcq1IVNpqyPoJzvfulwm0qmWRQ+fuI8Ckr0LNpj4XrI9\n-----END PRIVATE KEY-----\n"
 }
 
 ### Obtener mensajes del grupo
@@ -95,10 +95,11 @@ Authorization: Bearer {{ token_bob }}
 Accept: application/json
 
 > {%
-    client.global.set("mensaje_cifrado", response.body[0].mensaje)
-    client.global.set("clave_cifrada", response.body[0].clave_aes_cifrada)
-    client.global.set("nonce", response.body[0].nonce)
-    client.global.set("firma", response.body[0].firma)
+    const i = 4
+    client.global.set("mensaje_cifrado", response.body[i].mensaje)
+    client.global.set("clave_cifrada", response.body[i].clave_aes_cifrada)
+    client.global.set("nonce", response.body[i].nonce)
+    client.global.set("firma", response.body[i].firma)
 %}
 
 ### Desencriptar mensaje del grupo
@@ -111,7 +112,7 @@ Accept: application/json
   "mensaje_cifrado": "{{ mensaje_cifrado }}",
   "nonce": "{{ nonce }}",
   "clave_aes_cifrada": {{ clave_cifrada }},
-  "private_key_grupo_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgLUmXhxDPbLgllNQB\nF/HlH02b6qfnhH1uT54EU+DaX86hRANCAARLfJmzCBi4StNtw3UA46MdYd3u14Vd\nTghk6FMQ4VXulWGsWVCGvsWwuj/pqY+ZQcU7/TL36vAJ68XIchHf3sBS\n-----END PRIVATE KEY-----\n"
+  "private_key_grupo_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgpYmMwIjQm3X4Gu4A\n60bNXCg9RkIm5hDD1NoxxLiAsiehRANCAASLdhKq7226aR6mHbtPvLykH4AUz4gA\nti6BzwQFu3C2ZqjOlsmax6sabjtCNf1U1qRywCnyi9YCCosc/a3eQjz6\n-----END PRIVATE KEY-----\n"
 }
 
 ### Clear DB

@@ -56,21 +56,14 @@ Authorization: Bearer {{ token_alice }}
 
 {
   "mensaje": "Este es un mensaje secreto para Bob",
-  "clave_privada_pem": {{ private_alice }}
+  "clave_privada_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgZ2mH7tefs7J3ceEe\nBaIP8f0Tpe++QS/b0FFramI3E3ahRANCAATDuVBCMIkY7m1ukG98UzIBKNJ0QPCF\nwDOSsxn1uahbXvxyZxsF/AU9FmW9DwWwSPk8qxHP2GJS/uBkqvTFUsi9\n-----END PRIVATE KEY-----\n"
 }
 
 ### Get received messages as Bob
-GET http://localhost:8000/msg/mis-mensajes
+GET http://localhost:8000/msg/message/received
 Authorization: Bearer {{ token_bob }}
 Accept: application/json
 
-### Decrypt a specific message as Bob
-POST http://localhost:8000/msg/descifrar
-Content-Type: application/json
-Accept: application/json
-Authorization: Bearer {{ token_bob }}
 
-{
-  "mensaje_id": 1,
-  "clave_privada_pem": {{ private_bob }}
-}
+### Clear database
+POST http://localhost:8000/dev/clear-db

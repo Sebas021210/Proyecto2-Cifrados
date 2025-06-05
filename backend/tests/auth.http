@@ -9,6 +9,17 @@ Accept: application/json
   "name": "Test User"
 }
 
+### Register User receipient
+POST localhost:8000/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "test2@gmail.com",
+  "password": "test1234",
+  "name": "Test User"
+}
+
 ### Login User
 POST localhost:8000/auth/login
 Content-Type: application/json
@@ -30,7 +41,7 @@ Content-Type: application/json
 Accept: application/json
 
 ### Send individual message
-POST localhost:8000/msg/message/mark.albrand5@gmail.com
+POST localhost:8000/msg/message/test2@gmail.com
 Content-Type: application/json
 Accept: application/json
 Authorization: Bearer {{ token }}
