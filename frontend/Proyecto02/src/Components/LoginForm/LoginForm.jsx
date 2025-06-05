@@ -47,7 +47,7 @@ function LoginForm() {
     }
   }, []);
 
-  const API_URL = "http://localhost:8000"; // cambia si es otro host/puerto
+  const API_URL = "https://cf-backend.albrand.tech"; // cambia si es otro host/puerto
 
   const handleLogin = async () => {
     try {
@@ -370,7 +370,7 @@ function LoginForm() {
                   variant="outlined"
                   onClick={() => {
                     window.location.href =
-                      "http://localhost:8000/auth/login/google"; // cambia si tu backend está en otro host
+                      "https://cf-backend.albrand.tech/auth/login/google"; // cambia si tu backend está en otro host
                   }}
                   sx={{
                     borderColor: "#000",
