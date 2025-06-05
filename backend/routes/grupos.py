@@ -131,20 +131,14 @@ def obtener_grupo(
 ):
     grupo = obtener_detalles_grupo(session, grupo_id, user.id_pk)
 
-    miembros = []
-    for miembro in grupo.miembros_grupo:
-        llave_cifrada = None
-        if miembro.llave_privada_grupo_cifrada:
-            llave_cifrada = b64encode(miembro.llave_privada_grupo_cifrada).decode()
-
-        miembros.append(
-            MiembroDetalle(
-                id=miembro.usuario.id_pk,
-                nombre=miembro.usuario.nombre,
-                correo=miembro.usuario.correo,
-                llave_privada_cifrada=llave_cifrada
-            )
+    miembros = [
+        MiembroDetalle(
+            id=miembro.usuario.id_pk,
+            nombre=miembro.usuario.nombre,
+            correo=miembro.usuario.correo
         )
+        for miembro in grupo.miembros_grupo
+    ]
 
     return GrupoDetalleResponse(
         id_pk=grupo.id_pk,
