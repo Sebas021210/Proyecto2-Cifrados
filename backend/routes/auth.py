@@ -138,6 +138,8 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
         name = id_info.get('name')
 
         user = db.query(User).filter(User.correo == email).first()
+        private, public = None, None
+
         if not user:
             private, public = generate_ecc_keys()
             user = User(
@@ -156,12 +158,13 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
         refresh_token = create_refresh_token(data={"sub": user.correo}, expires_delta=timedelta(days=7))
 
 
-        frontend_callback_url = "http://localhost:5173/auth/callback" 
+        frontend_callback_url = "http://localhost:5173/auth/callback"
+
         query_params = urlencode({
             "access_token": access_token,
             "name": user.nombre,
             "email": user.correo,
-            "private_key": private
+            "private_key": private if private else "",
         })
 
 

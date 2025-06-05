@@ -38,3 +38,8 @@ Authorization: Bearer {{ token }}
   "clave_privada_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgUz/l3lQZskDz+GqM\naf9dM2UySv9i/rO3YHQ9R3D9wkihRANCAAS8V+opfsE8WjgordHZCNPmuP+VcmU7\nWkCIBM0Qx9Nz5vBTYF2OT4m3oQz4350CvWn6vvVlej0spRrDtSlbp/18\n-----END PRIVATE KEY-----\n"
 }
 
+### Get transactions
+GET localhost:8000/blockchain/transactions
+Authorization: Bearer {{ token }}
+Content-Type: application/json
+Accept: application/json

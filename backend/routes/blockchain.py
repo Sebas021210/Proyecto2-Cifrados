@@ -5,16 +5,18 @@ import os
 
 from sqlalchemy.orm import Session
 
-from backend.database import get_db, Blockchain
+from backend.utils.auth import get_current_user
+from backend.database import get_db, Blockchain, User
 from backend.models.transactions import ManualTransaction
 
 
-router = APIRouter(prefix="/blockchain",)
+router = APIRouter()
 
 
 # Obtener historial de blockchain
 @router.get("/transactions")
 def obtener_historial_blockchain(
+        user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
     bloques = db.query(Blockchain).order_by(Blockchain.id_bloque_pk).all()

@@ -2,10 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 load_dotenv()
-from backend.routes import auth_router
-from backend.routes.mensajes import router as mensajes_router
-from backend.routes.grupos import router as grupos_router
-from backend.routes.firmas import router as firmas_router
+from backend.routes import auth_router, blockchain, messages_router, grupos_router, firmas_router
+
 
 app = FastAPI(
     title="Cifrados: Proyecto 2 - Blockchain y Cifrado",
@@ -21,11 +19,13 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(mensajes_router, prefix="/msg", tags=["mensajes"])
+app.include_router(messages_router, prefix="/msg", tags=["mensajes"])
 
 app.include_router(grupos_router, prefix="/grupos", tags=["grupos"])
 
 app.include_router(firmas_router, prefix="/firmas", tags=["firmas"])
+
+app.include_router(blockchain.router, prefix="/blockchain", tags=["blockchain"])
 
 if __name__ == "__main__":
     import uvicorn
