@@ -1,0 +1,7 @@
+secrets
+*.sqlite
+.idea
+*.db
+*/.vite
+*/temp
+private_keys
