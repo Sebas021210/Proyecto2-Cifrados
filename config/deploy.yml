@@ -16,7 +16,7 @@ proxy:
   app_port: 8000
   healthcheck:
     interval: 3
-    path: /
+    path: /docs
     timeout: 3
 
 # Credentials for your image host.
