@@ -678,7 +678,11 @@ function ChatPage() {
             variant="outlined"
             placeholder="Escribe un mensaje..."
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              const nuevoTexto = e.target.value;
+              if (nuevoTexto === message) return; // Evita doble render innecesario
+              setMessage(nuevoTexto);
+            }}
             InputProps={{
               style: {
                 backgroundColor: "#fff",
