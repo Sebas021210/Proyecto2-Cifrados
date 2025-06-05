@@ -13,8 +13,10 @@ from backend.models.user import LoginRequest, RegisterRequest
 from backend.utils.auth import create_access_token, create_refresh_token, SECRET_KEY, ALGORITHM, hash_password, get_current_user
 from random import randint
 from backend.utils.email_config import send_verification_email  # importa la función
-from pydantic import EmailStr
+from pydantic import BaseModel, EmailStr
 from fastapi import Body
+from sqlalchemy.orm import Session
+
 
 router = APIRouter()
 
@@ -61,14 +63,19 @@ async def login(login_request: LoginRequest, db=Depends(get_db)):
 
 @router.post("/register")
 async def register(register_request: RegisterRequest, db=Depends(get_db)):
-    existing_user = db.query(User).filter(User.correo == register_request.email).first()
+    email = register_request.email
+
+    if email in verification_codes:
+        raise HTTPException(status_code=400, detail="Verifica tu PIN antes de registrarte.")
+
+    existing_user = db.query(User).filter(User.correo == email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
     private, public = generate_ecc_keys()
 
     new_user = User(
-        correo=str(register_request.email),
+        correo=email,
         contraseña=hash_password(register_request.password),
         public_key=public,
         nombre=register_request.name,
@@ -79,18 +86,12 @@ async def register(register_request: RegisterRequest, db=Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # Generar y guardar PIN
-    pin = str(randint(100000, 999999))
-    verification_codes[new_user.correo] = pin
-
-    # Enviar por correo
-    await send_verification_email(new_user.correo, pin)
-
     return {
-        "message": "Usuario registrado. Verifica tu correo con el código enviado.",
+        "message": "Usuario registrado correctamente",
         "private_key": private,
-        "email": new_user.correo,
+        "email": email,
     }
+
 
 @router.get("/login/google")
 async def login_google(request: Request):
@@ -138,7 +139,7 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
 
         user = db.query(User).filter(User.correo == email).first()
         if not user:
-            public, private = generate_ecc_keys()
+            private, public = generate_ecc_keys()
             user = User(
                 correo=email,
                 public_key=public,
@@ -160,6 +161,7 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
             "access_token": access_token,
             "name": user.nombre,
             "email": user.correo,
+            "private_key": private
         })
 
 
@@ -228,3 +230,20 @@ async def test_auth(user = Depends(get_current_user)):
     Endpoint de prueba para verificar la autenticación.
     """
     return {"message": "Autenticación exitosa", "user": {"email": user.correo, "name": user.nombre}}
+
+
+class EmailRequest(BaseModel):
+    email: EmailStr
+
+@router.post("/send-pin")
+async def send_pin(request: EmailRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.correo == request.email).first()
+    if user:
+        raise HTTPException(status_code=400, detail="Este correo ya está registrado.")
+
+    pin = str(randint(100000, 999999))
+    verification_codes[request.email] = pin
+
+    await send_verification_email(request.email, pin)
+
+    return {"message": "PIN enviado al correo correctamente."}

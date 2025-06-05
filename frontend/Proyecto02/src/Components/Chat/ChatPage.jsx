@@ -52,19 +52,22 @@ function ChatPage() {
 
   const handleSend = async () => {
     if (!message.trim() || !activeUser || !privateKeyPem) return;
-    
-    try{
-      const response = await fetch(`http://localhost:8000/msg/message/${activeUser.correo}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          mensaje: message,
-          clave_privada_pem: privateKeyPem,
-        }),
-      });
+
+    try {
+      const response = await fetch(
+        `http://localhost:8000/msg/message/${activeUser.correo}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            mensaje: message,
+            clave_privada_pem: privateKeyPem,
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Error al enviar el mensaje");
@@ -127,7 +130,14 @@ function ChatPage() {
     }
 
     try {
-      // 1. Crear grupo
+      // Convertir correos seleccionados en IDs de usuarios
+      const miembrosIds = selectedUsers
+        .map((correo) => {
+          const user = users.find((u) => u.correo === correo);
+          return user ? user.id_pk : null;
+        })
+        .filter((id) => id !== null);
+
       const responseGrupo = await fetch(
         "http://localhost:8000/grupos/newGroup",
         {
@@ -136,47 +146,20 @@ function ChatPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
           },
-          body: JSON.stringify({ nombre: groupName }),
+          body: JSON.stringify({
+            nombre: groupName,
+            miembros_ids: miembrosIds,
+          }),
         }
       );
 
       if (!responseGrupo.ok) {
-        throw new Error("Error al crear el grupo");
+        const errMsg = await responseGrupo.text();
+        throw new Error(`Error al crear el grupo: ${errMsg}`);
       }
 
       const grupoData = await responseGrupo.json();
       console.log("Grupo creado:", grupoData);
-
-      const grupoId = grupoData.id_pk;
-
-      // 2. Agregar miembros (uno por uno)
-      for (const correo of selectedUsers) {
-        // Encontrar el id del usuario por su correo
-        const usuario = users.find((u) => u.correo === correo);
-        if (!usuario) continue;
-
-        const responseMiembro = await fetch(
-          "http://localhost:8000/grupos/miembros",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              id_grupo: grupoId,
-              id_usuario: usuario.id_pk,
-            }),
-          }
-        );
-
-        if (!responseMiembro.ok) {
-          console.error(`Error al agregar miembro: ${correo}`);
-        } else {
-          const miembroData = await responseMiembro.json();
-          console.log("Miembro agregado:", miembroData);
-        }
-      }
 
       alert("Grupo creado exitosamente con sus miembros.");
       setOpenGroupModal(false);
@@ -283,7 +266,8 @@ function ChatPage() {
             headers: { Authorization: `Bearer ${accessToken}` },
           }
         );
-        if (!resReceived.ok) throw new Error("Error al obtener mensajes recibidos");
+        if (!resReceived.ok)
+          throw new Error("Error al obtener mensajes recibidos");
         const receivedData = await resReceived.json();
 
         const mensajesRecibidos = await Promise.all(
@@ -291,7 +275,11 @@ function ChatPage() {
             try {
               const contenido = JSON.parse(msg.message);
               const clave = JSON.parse(msg.clave_aes_cifrada);
-              const textoPlano = await Decrypt.descifrarTodo(clave, contenido, privateKeyPem);
+              const textoPlano = await Decrypt.descifrarTodo(
+                clave,
+                contenido,
+                privateKeyPem
+              );
               return {
                 text: textoPlano,
                 type: "received",
@@ -321,7 +309,10 @@ function ChatPage() {
         }));
 
         // 3. Combinar, filtrar nulos y ordenar
-        const todos = [...mensajesRecibidos.filter(Boolean), ...mensajesEnviados];
+        const todos = [
+          ...mensajesRecibidos.filter(Boolean),
+          ...mensajesEnviados,
+        ];
         todos.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
         // 4. Guardar
@@ -601,13 +592,15 @@ function ChatPage() {
                 key={i}
                 sx={{
                   display: "flex",
-                  justifyContent: msg.type === "received" ? "flex-start" : "flex-end",
+                  justifyContent:
+                    msg.type === "received" ? "flex-start" : "flex-end",
                 }}
               >
                 <Paper
                   sx={{
                     p: 1.5,
-                    backgroundColor: msg.type === "received" ? "#E0E0E0" : "#C3C3C3",
+                    backgroundColor:
+                      msg.type === "received" ? "#E0E0E0" : "#C3C3C3",
                     color: "#000",
                     borderRadius: 4,
                     maxWidth: "70%",

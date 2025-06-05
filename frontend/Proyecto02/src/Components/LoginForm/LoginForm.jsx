@@ -79,31 +79,32 @@ function LoginForm() {
   };
 
   const handleRegister = async () => {
+    if (!emailRegister || !passwordRegister || !nombre || !apellido) {
+      alert("Por favor completa todos los campos.");
+      return;
+    }
+
     try {
-      const fullName = `${nombre} ${apellido}`;
-      const response = await axios.post(`${API_URL}/auth/register`, {
+      const response = await axios.post(`${API_URL}/auth/send-pin`, {
         email: emailRegister,
-        password: passwordRegister,
-        name: fullName,
       });
 
-      const { private_key, email } = response.data;
-
-      if (private_key) {
-        const emailParts = email.split("@");
-        const filename = `${emailParts[0]}_clave_privada.pem`;
-        downloadPrivateKey(private_key, filename);
-      }
-
       setPendingEmail(emailRegister);
-      setShowPinModal(true); // abrir modal
-      alert("Revisa tu correo para el PIN ✅ y guarda tu clave privada 🔐");
+      setShowPinModal(true);
+      setTimeout(() => {
+        setShowPinModal(false);
+        alert("⏱️ El tiempo para ingresar el PIN ha expirado");
+      }, 180000); // 3 minutos
+
+      alert(
+        "Se ha enviado un PIN a tu correo. Tienes 3 minutos para ingresarlo."
+      );
     } catch (error) {
       console.error(
-        "Error en registro:",
+        "Error al enviar PIN:",
         error.response?.data || error.message
       );
-      alert("Registro fallido ❌");
+      alert("❌ No se pudo enviar el PIN de verificación");
     }
   };
 
@@ -115,16 +116,32 @@ function LoginForm() {
   const handleVerifyPin = async () => {
     setLoadingPin(true);
     try {
-      const response = await axios.post(`${API_URL}/auth/verify-pin`, {
+      await axios.post(`${API_URL}/auth/verify-pin`, {
         email: pendingEmail,
         pin: pin,
       });
 
-      alert("Correo verificado correctamente");
+      alert("✅ Correo verificado correctamente. Se creará tu cuenta.");
+
+      const fullName = `${nombre} ${apellido}`;
+      const registerResponse = await axios.post(`${API_URL}/auth/register`, {
+        email: emailRegister,
+        password: passwordRegister,
+        name: fullName,
+      });
+
+      const { private_key, email } = registerResponse.data;
+
+      if (private_key) {
+        const emailParts = email.split("@");
+        const filename = `${emailParts[0]}_clave_privada.pem`;
+        downloadPrivateKey(private_key, filename);
+      }
+
       setShowPinModal(false);
-      setIsRegistering(false); // redirigir a login normal
+      setIsRegistering(false);
     } catch (error) {
-      console.error("Error al verificar PIN:", error);
+      console.error("Error al verificar PIN o registrar:", error);
       alert("❌ PIN incorrecto o expirado");
     } finally {
       setLoadingPin(false);
