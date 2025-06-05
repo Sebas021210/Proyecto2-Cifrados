@@ -138,7 +138,8 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
         name = id_info.get('name')
 
         user = db.query(User).filter(User.correo == email).first()
-        private, public = None, None
+
+        private_key_to_send = None  # Inicializá como None por si no se genera
 
         if not user:
             private, public = generate_ecc_keys()
@@ -152,26 +153,34 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
             db.add(user)
             db.commit()
             db.refresh(user)
-
+            private_key_to_send = private  # Solo si se generó
+        else:
+            # Si querés permitir que los usuarios existentes que no tienen llave pública se les genere:
+            if not user.public_key:
+                private, public = generate_ecc_keys()
+                user.public_key = public
+                db.commit()
+                private_key_to_send = private  # Asignar la nueva llave privada
 
         access_token = create_access_token(data={"sub": user.correo}, expires_delta=timedelta(minutes=15))
         refresh_token = create_refresh_token(data={"sub": user.correo}, expires_delta=timedelta(days=7))
 
-
         frontend_callback_url = "http://localhost:5173/auth/callback"
 
-        query_params = urlencode({
+        # Agregar solo si existe
+        query_data = {
             "access_token": access_token,
             "name": user.nombre,
             "email": user.correo,
-            "private_key": private if private else "",
-        })
+        }
 
+        if private_key_to_send:
+            query_data["private_key"] = private_key_to_send
 
+        query_params = urlencode(query_data)
         redirect_url = f"{frontend_callback_url}?{query_params}"
 
         redirect_response = RedirectResponse(url=redirect_url)
-
 
         redirect_response.set_cookie(
             key="refresh_token",
