@@ -1,4 +1,4 @@
-.kamal/secrets.backend
+.kamal/secrets
 *.sqlite
 .idea
 *.db
