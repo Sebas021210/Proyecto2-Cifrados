@@ -1,0 +1,59 @@
+### Register User
+POST https://cf-backend.albrand.tech/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "test@gmail.com",
+  "password": "test1234",
+  "name": "Test User"
+}
+
+### Login User
+POST https://cf-backend.albrand.tech/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "test@gmail.com",
+  "password": "test1234"
+}
+
+> {%
+    client.global.set("token", response.body.access_token)
+%}
+
+### Test Authenticated Endpoint
+GET https://cf-backend.albrand.tech/auth/test
+Authorization: Bearer {{ token }}
+Content-Type: application/json
+Accept: application/json
+
+### Send individual message
+POST https://cf-backend.albrand.tech/msg/message/mark.albrand5@gmail.com
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{ token }}
+
+{
+  "mensaje": "Hello, this is a test message!",
+  "clave_privada_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgUz/l3lQZskDz+GqM\naf9dM2UySv9i/rO3YHQ9R3D9wkihRANCAAS8V+opfsE8WjgordHZCNPmuP+VcmU7\nWkCIBM0Qx9Nz5vBTYF2OT4m3oQz4350CvWn6vvVlej0spRrDtSlbp/18\n-----END PRIVATE KEY-----\n"
+}
+
+### Get transactions
+GET https://cf-backend.albrand.tech/blockchain/transactions
+Authorization: Bearer {{ token }}
+Content-Type: application/json
+Accept: application/json
+
+### Verify integrity of a transaction
+GET https://cf-backend.albrand.tech/blockchain/transactions/integridad
+Authorization: Bearer {{ token }}
+Content-Type: application/json
+Accept: application/json
+
+### Verify integrity of a transaction for a group
+GET https://cf-backend.albrand.tech/blockchain/transactions/integridad-grupal
+Authorization: Bearer {{ token }}
+Content-Type: application/json
+Accept: application/json
