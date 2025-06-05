@@ -1,0 +1,76 @@
+### Register User
+POST http://localhost:8000/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "alice@test.com",
+  "password": "test1234",
+  "name": "Alice"
+}
+
+> {% client.global.set("private_alice", response.body.private_key) %}
+
+### Login User
+POST http://localhost:8000/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "alice@test.com",
+  "password": "test1234"
+}
+
+> {% client.global.set("token_alice", response.body.access_token) %}
+
+### Register Recipient
+POST http://localhost:8000/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "bob@test.com",
+  "password": "test1234",
+  "name": "Bob"
+}
+
+> {% client.global.set("private_bob", response.body.private_key) %}
+
+### Login as Bob
+POST http://localhost:8000/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "bob@test.com",
+  "password": "test1234"
+}
+
+> {% client.global.set("token_bob", response.body.access_token) %}
+
+### Send encrypted message from Alice to Bob
+POST http://localhost:8000/msg/message/bob@test.com
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{ token_alice }}
+
+{
+  "mensaje": "Este es un mensaje secreto para Bob",
+  "clave_privada_pem": {{ private_alice }}
+}
+
+### Get received messages as Bob
+GET http://localhost:8000/msg/mis-mensajes
+Authorization: Bearer {{ token_bob }}
+Accept: application/json
+
+### Decrypt a specific message as Bob
+POST http://localhost:8000/msg/descifrar
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{ token_bob }}
+
+{
+  "mensaje_id": 1,
+  "clave_privada_pem": {{ private_bob }}
+}

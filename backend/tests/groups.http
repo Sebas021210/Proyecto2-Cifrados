@@ -1,0 +1,118 @@
+### Register User
+POST http://localhost:8000/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "alice@test.com",
+  "password": "test1234",
+  "name": "Alice"
+}
+
+> {% client.global.set("private_alice", response.body.private_key) %}
+
+### Login User
+POST http://localhost:8000/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "alice@test.com",
+  "password": "test1234"
+}
+
+> {%
+    client.global.set("token_alice", response.body.access_token)
+    client.global.set("id_alice", response.body.user.id)
+%}
+
+### Register Recipient
+POST http://localhost:8000/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "bob@test.com",
+  "password": "test1234",
+  "name": "Bob"
+}
+
+> {% client.global.set("private_bob", response.body.private_key) %}
+
+### Login as Bob
+POST http://localhost:8000/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "bob@test.com",
+  "password": "test1234"
+}
+
+> {%
+    client.global.set("token_bob", response.body.access_token)
+    client.global.set("id_bob", response.body.user.id)
+%}
+
+### Nuevo grupo
+POST localhost:8000/grupos/newGroup
+Content-Type: application/json
+Authorization: Bearer {{ token_alice }}
+Accept: application/json
+
+{
+  "nombre": "Grupo de Prueba",
+  "miembros_ids": [{{id_bob}}, {{ id_alice}}]
+}
+
+> {%
+    client.global.set("grupo_id", response.body.id_pk)
+    client.global.set("llave_privada_grupo_cifrada", response.body.llave_privada)
+%}
+
+### Obtener grupos de Alice
+GET http://localhost:8000/grupos/getGroups
+Content-Type: application/json
+Authorization: Bearer {{ token_alice }}
+Accept: application/json
+
+> {% client.global.set("grupo_id", response.body[0].id_pk) %}
+
+### Enviar mensaje al grupo
+POST http://localhost:8000/grupos/group/message/{{ grupo_id }}
+Content-Type: application/json
+Authorization: Bearer {{ token_alice }}
+Accept: application/json
+
+{
+  "mensaje": "Este es un mensaje secreto para el grupo",
+  "clave_privada_usuario_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgZkm5wKsP4JpwS07j\niObHmg024bkvr4dgnl2PY9/U9aChRANCAAT/aZNhA92lNR5h+Ahi67c0BU/3+3ih\n6tHTtJsNWAzDXifClmQr2mn61GIvPmMRgyI8lI2ylSLyPahOCig+F8Fn\n-----END PRIVATE KEY-----\n"
+}
+
+### Obtener mensajes del grupo
+GET http://localhost:8000/grupos/GroupMessages/{{ grupo_id }}
+Authorization: Bearer {{ token_alice }}
+Accept: application/json
+
+> {%
+    client.global.set("mensaje_cifrado", response.body[0].mensaje)
+    client.global.set("clave_cifrada", response.body[0].clave_aes_cifrada)
+    client.global.set("nonce", response.body[0].nonce)
+    client.global.set("firma", response.body[0].firma)
+%}
+
+### Desencriptar mensaje del grupo
+POST http://localhost:8000/grupos/descifrar_mensaje_grupo
+Authorization: Bearer {{ token_alice }}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "mensaje_cifrado": "{{ mensaje_cifrado }}",
+  "nonce": "{{ nonce }}",
+  "clave_aes_cifrada": {{ clave_cifrada }},
+  "private_key_grupo_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgp+Sii0sjhg9VrpbB\nerPWqeuMPmDKASgAAdFjwfdHBIuhRANCAAS3zJ+ZKYi1nh9w+Ea2wFWI0D54cgVZ\ndW5Lg8Fm4iFex3w6SBPLmRF2xMfjmNB5Dq8sjGPo/ySgBF8ecnEK4UHn\n-----END PRIVATE KEY-----\n"
+}
+
+### Clear DB
+POST http://localhost:8000/dev/clear-db

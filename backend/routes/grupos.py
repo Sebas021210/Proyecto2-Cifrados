@@ -1,23 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
+from typing import List, Annotated
+from datetime import datetime
+from base64 import b64decode
+import base64
+import os
+
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
 from backend.models.user import UserBase
 from backend.utils.auth import get_current_user
 from backend.controllers.keys import cifrar_con_ecdh_aes
 from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest, GroupMessageRequest, MensajeGrupoResponse,MiembroDetalleMono, DescifrarRequest, DescifrarResponse
 from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios, eliminar_miembro_controller, encrypt_aes_key_with_public_key, obtener_mensajes_de_grupo
-from backend.database import get_db, User, db, MiembrosGrupos, MensajesGrupo, Grupos
-from sqlalchemy.orm import Session
-from typing import List
-from typing import Annotated
-from sqlalchemy import select
-from datetime import datetime
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-import base64
-import os
-from base64 import b64decode
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from backend.database import get_db, User, MiembrosGrupos, MensajesGrupo, Grupos
+from backend.models.message import DecryptGroupMessageRequest, DecryptGroupMessageResponse
 
 
 router = APIRouter()
@@ -121,6 +124,10 @@ def obtener_grupos(
 ):
     try:
         grupos = listar_grupos(session, current_user.id_pk )
+
+        if type(grupos) is not list:
+            grupos = [grupos]
+
         return grupos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener grupos: {e}")
@@ -388,3 +395,49 @@ def descifrar_llave_privada_grupo(
         raise HTTPException(status_code=400, detail=f"Error descifrando llave: {e}")
 
     return DescifrarResponse(llave_privada_grupo=llave_privada_grupo)
+
+@router.post("/descifrar_mensaje_grupo", response_model=DecryptGroupMessageResponse)
+def descifrar_mensaje_grupo(
+    request: DecryptGroupMessageRequest,
+    user: User = Depends(get_current_user)
+):
+    try:
+        # 1. Cargar clave privada del grupo
+        grupo_priv_key = serialization.load_pem_private_key(
+            request.private_key_grupo_pem.encode('utf-8'),
+            password=None
+        )
+
+        # 2. Extraer datos cifrados
+        ciphertext = base64.b64decode(request.mensaje_cifrado)
+        nonce = base64.b64decode(request.nonce)
+        encrypted_key_info = request.clave_aes_cifrada
+
+        # 3. Derivar clave compartida (ECIES)
+        ephemeral_pub_key = serialization.load_pem_public_key(
+            encrypted_key_info['ephemeral_public_key'].encode('utf-8')
+        )
+
+        shared_key = grupo_priv_key.exchange(ec.ECDH(), ephemeral_pub_key)
+        derived_key = HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=None,
+            info=b"ecies"
+        ).derive(shared_key)
+
+        # 4. Descifrar clave AES
+        encrypted_aes_key = base64.b64decode(encrypted_key_info['encrypted_key'])
+        nonce_key = base64.b64decode(encrypted_key_info['nonce'])
+
+        aesgcm_key = AESGCM(derived_key)
+        aes_key = aesgcm_key.decrypt(nonce_key, encrypted_aes_key, None)
+
+        # 5. Descifrar mensaje
+        aesgcm_msg = AESGCM(aes_key)
+        mensaje_plano = aesgcm_msg.decrypt(nonce, ciphertext, None).decode('utf-8')
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error descifrando mensaje: {e}")
+
+    return DecryptGroupMessageResponse(mensaje_plano=mensaje_plano)

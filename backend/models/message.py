@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 class FirmaRequest(BaseModel):
     private_key: str
@@ -132,3 +132,12 @@ class DescifrarRequest(BaseModel):
 
 class DescifrarResponse(BaseModel):
     llave_privada_grupo: str
+
+class DecryptGroupMessageRequest(BaseModel):
+    mensaje_cifrado: str
+    nonce: str
+    clave_aes_cifrada: Dict[str, str]  # contiene 'aes_key_encrypted', 'nonce', 'ephemeral_public_key'
+    private_key_grupo_pem: str
+
+class DecryptGroupMessageResponse(BaseModel):
+    mensaje_plano: str

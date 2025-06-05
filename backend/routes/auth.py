@@ -49,7 +49,8 @@ async def login(login_request: LoginRequest, db=Depends(get_db)):
         "token_type": "bearer",
         "user": {
             "name": user.nombre,
-            "email": user.correo
+            "email": user.correo,
+            "id": user.id_pk,
         }
     })
 
