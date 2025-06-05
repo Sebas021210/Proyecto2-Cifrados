@@ -91,7 +91,7 @@ Accept: application/json
 
 ### Obtener mensajes del grupo
 GET http://localhost:8000/grupos/GroupMessages/{{ grupo_id }}
-Authorization: Bearer {{ token_alice }}
+Authorization: Bearer {{ token_bob }}
 Accept: application/json
 
 > {%
@@ -103,7 +103,7 @@ Accept: application/json
 
 ### Desencriptar mensaje del grupo
 POST http://localhost:8000/grupos/descifrar_mensaje_grupo
-Authorization: Bearer {{ token_alice }}
+Authorization: Bearer {{ token_bob }}
 Content-Type: application/json
 Accept: application/json
 
