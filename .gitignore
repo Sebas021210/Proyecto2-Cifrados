@@ -1,3 +1,5 @@
+secrets.*
+secrets
 *.sqlite
 .idea
 *.db

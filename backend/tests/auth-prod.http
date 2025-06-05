@@ -1,5 +1,5 @@
 ### Register User
-POST localhost:8000/auth/register
+POST https://cf-backend.albrand.tech/auth/register
 Content-Type: application/json
 Accept: application/json
 
@@ -10,7 +10,7 @@ Accept: application/json
 }
 
 ### Login User
-POST localhost:8000/auth/login
+POST https://cf-backend.albrand.tech/auth/login
 Content-Type: application/json
 Accept: application/json
 
@@ -24,13 +24,13 @@ Accept: application/json
 %}
 
 ### Test Authenticated Endpoint
-GET localhost:8000/auth/test
+GET https://cf-backend.albrand.tech/auth/test
 Authorization: Bearer {{ token }}
 Content-Type: application/json
 Accept: application/json
 
 ### Send individual message
-POST localhost:8000/msg/message/mark.albrand5@gmail.com
+POST https://cf-backend.albrand.tech/msg/message/mark.albrand5@gmail.com
 Content-Type: application/json
 Accept: application/json
 Authorization: Bearer {{ token }}
@@ -41,24 +41,19 @@ Authorization: Bearer {{ token }}
 }
 
 ### Get transactions
-GET localhost:8000/blockchain/transactions
+GET https://cf-backend.albrand.tech/blockchain/transactions
 Authorization: Bearer {{ token }}
 Content-Type: application/json
 Accept: application/json
 
 ### Verify integrity of a transaction
-GET localhost:8000/blockchain/transactions/integridad
+GET https://cf-backend.albrand.tech/blockchain/transactions/integridad
 Authorization: Bearer {{ token }}
 Content-Type: application/json
 Accept: application/json
 
 ### Verify integrity of a transaction for a group
-GET localhost:8000/blockchain/transactions/integridad-grupal
+GET https://cf-backend.albrand.tech/blockchain/transactions/integridad-grupal
 Authorization: Bearer {{ token }}
-Content-Type: application/json
-Accept: application/json
-
-### Clear
-POST localhost:8000/dev/clear-db
 Content-Type: application/json
 Accept: application/json

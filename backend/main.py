@@ -27,6 +27,17 @@ app.include_router(firmas_router, prefix="/firmas", tags=["firmas"])
 
 app.include_router(blockchain.router, prefix="/blockchain", tags=["blockchain"])
 
+@app.post("/dev/clear-db")
+async def clear_db():
+    """
+    Endpoint para limpiar la base de datos (solo para desarrollo).
+    """
+    from backend.database import db
+
+    db.clear()
+
+    return {"message": "Database cleared successfully."}
+
 if __name__ == "__main__":
     import uvicorn
 
