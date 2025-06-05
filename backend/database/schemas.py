@@ -81,8 +81,12 @@ class MensajesGrupo(Base):
     id_bloque_grupo = Column(Integer, ForeignKey('blockchain.id_bloque_pk'))
     id_grupo_fk = Column(Integer, ForeignKey('grupos.id_pk'))
     id_remitente_fk = Column(Integer, ForeignKey('user.id_pk'))
-    mensaje = Column(String, nullable=False)
-    firma = Column(String, nullable=False)
+
+    mensaje = Column(String, nullable=False)  # Mensaje cifrado AES-GCM (base64)
+    nonce = Column(String, nullable=False)    # Nonce AES-GCM (base64)
+    clave_aes_cifrada = Column(String, nullable=False)  # AES key cifrada con clave pública grupo (base64 o JSON)
+    firma = Column(String, nullable=False)    # Firma ECDSA (hex)
+    hash_mensaje = Column(String, nullable=False)  # Hash del mensaje plano (hex)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     remitente = relationship("User", foreign_keys=[id_remitente_fk])

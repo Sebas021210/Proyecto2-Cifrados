@@ -104,3 +104,7 @@ class UserListItem(BaseModel):
 class MiembroEliminarRequest(BaseModel):
     id_grupo: int
     id_usuario: int
+
+class GroupMessageRequest(BaseModel):
+    mensaje: str
+    clave_privada_usuario_pem: str  # PEM para firmar mensaje plano

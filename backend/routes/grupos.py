@@ -3,13 +3,19 @@ from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
 from backend.utils.auth import get_current_user
 from backend.controllers.keys import cifrar_con_ecdh_aes
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest
-from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios, eliminar_miembro_controller
-from backend.database import get_db, User, db, MiembrosGrupos
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest, GroupMessageRequest
+from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios, eliminar_miembro_controller, encrypt_aes_key_with_public_key
+from backend.database import get_db, User, db, MiembrosGrupos, MensajesGrupo, Grupos
 from sqlalchemy.orm import Session
 from typing import List
 from typing import Annotated
-from base64 import b64encode
+from sqlalchemy import select
+from datetime import datetime
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import base64
+import os
 
 
 router = APIRouter()
@@ -215,3 +221,82 @@ async def eliminar_miembro(
         raise HTTPException(status_code=500, detail=f"Error eliminando miembro: {e}")
 
     return {"mensaje": "Miembro eliminado del grupo exitosamente."}
+
+
+def sign_message(private_key: ec.EllipticCurvePrivateKey, message: str) -> str:
+    signature = private_key.sign(message.encode(), ec.ECDSA(hashes.SHA256()))
+    return signature.hex()
+
+def encrypt_message_aes(message: str, aes_key: bytes) -> dict:
+    aesgcm = AESGCM(aes_key)
+    nonce = os.urandom(12)
+    ciphertext = aesgcm.encrypt(nonce, message.encode(), None)
+    return {
+        "ciphertext": base64.b64encode(ciphertext).decode(),
+        "nonce": base64.b64encode(nonce).decode()
+    }
+
+@router.post("/group/message/{grupo_id}")
+def enviar_mensaje_grupo(
+    grupo_id: int,
+    datos: GroupMessageRequest,
+    session: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    # 1. Verificar que el usuario es miembro del grupo
+    miembro = session.execute(
+        select(MiembrosGrupos).where(
+            MiembrosGrupos.id_grupo_fk == grupo_id,
+            MiembrosGrupos.id_user_fk == user.id_pk
+        )
+    ).scalar_one_or_none()
+
+    if not miembro:
+        raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
+
+    # 2. Obtener clave pública del grupo
+    grupo = session.query(Grupos).filter(Grupos.id_pk == grupo_id).first()
+    if not grupo or not grupo.llave_publica:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado o no tiene clave pública")
+
+    # 3. Cargar clave privada del remitente para firmar
+    try:
+        private_key = serialization.load_pem_private_key(
+            datos.clave_privada_usuario_pem.encode(),
+            password=None
+        )
+    except Exception:
+        raise HTTPException(status_code=400, detail="Clave privada inválida o malformateada")
+
+    # 4. Firmar mensaje plano
+    firma = sign_message(private_key, datos.mensaje)
+
+    # 5. Generar clave AES y cifrar mensaje
+    clave_aes = os.urandom(32)
+    cifrado = encrypt_message_aes(datos.mensaje, clave_aes)
+    mensaje_cifrado = cifrado["ciphertext"]
+    nonce_mensaje = cifrado["nonce"]
+
+    # 6. Cifrar clave AES con clave pública del grupo (ECIES)
+    clave_aes_cifrada_json = encrypt_aes_key_with_public_key(clave_aes, grupo.clave_publica_grupo)
+
+    # 7. Calcular hash SHA-256 del mensaje plano para integridad
+    hash_mensaje = hashes.Hash(hashes.SHA256())
+    hash_mensaje.update(datos.mensaje.encode())
+    hash_hex = hash_mensaje.finalize().hex()
+
+    # 8. Guardar mensaje en DB
+    nuevo_mensaje = MensajesGrupo(
+        id_grupo_fk=grupo_id,
+        id_remitente_fk=user.id_pk,
+        mensaje=mensaje_cifrado,
+        nonce=nonce_mensaje,
+        clave_aes_cifrada=clave_aes_cifrada_json,
+        firma=firma,
+        hash_mensaje=hash_hex,
+        timestamp=datetime.utcnow()
+    )
+    session.add(nuevo_mensaje)
+    session.commit()
+
+    return {"msg": "Mensaje grupal enviado correctamente"}

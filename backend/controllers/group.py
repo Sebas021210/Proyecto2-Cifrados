@@ -1,13 +1,18 @@
 from sqlalchemy.exc import IntegrityError
-from backend.database import Grupos, User
 from backend.database import db as db_instance
-from backend.database.schemas import MiembrosGrupos, Grupos, User
+from backend.database.schemas import MiembrosGrupos, Grupos, User, MensajesGrupo
 from backend.controllers.keys import generate_rsa_keys, generate_ecc_keys
 from sqlalchemy.orm import Session
 from backend.database import db, User, Mensajes, Blockchain
 from typing import List, Type
 from fastapi import Depends, HTTPException
-
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import base64
+import os
+import json
 
 def agregar_miembro_controller(id_grupo: int, id_usuario: int) -> dict:
     with db_instance.write() as session:
@@ -106,3 +111,45 @@ def eliminar_miembro_controller(id_grupo: int, id_usuario: int):
             raise ValueError("El usuario no es miembro del grupo o ya fue eliminado.")
 
         session.delete(miembro)
+
+
+
+def encrypt_aes_key_with_public_key(aes_key: bytes, public_key_pem: str) -> str:
+    """
+    Cifra la clave AES con la clave pública del grupo usando ECIES (ECDH + AES-GCM).
+    Devuelve un JSON base64 string con:
+    {
+      "encrypted_key": base64,
+      "nonce": base64,
+      "ephemeral_public_key": PEM
+    }
+    """
+    peer_public_key = serialization.load_pem_public_key(public_key_pem.encode())
+
+    ephemeral_private_key = ec.generate_private_key(ec.SECP256R1())
+    shared_key = ephemeral_private_key.exchange(ec.ECDH(), peer_public_key)
+
+    derived_key = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=b"ecies",
+    ).derive(shared_key)
+
+    aesgcm = AESGCM(derived_key)
+    nonce = os.urandom(12)
+    encrypted_key = aesgcm.encrypt(nonce, aes_key, None)
+
+    ephemeral_public_key = ephemeral_private_key.public_key()
+    ephemeral_pem = ephemeral_public_key.public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode()
+
+    payload = {
+        "encrypted_key": base64.b64encode(encrypted_key).decode(),
+        "nonce": base64.b64encode(nonce).decode(),
+        "ephemeral_public_key": ephemeral_pem
+    }
+
+    return json.dumps(payload)
