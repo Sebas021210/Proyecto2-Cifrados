@@ -4,7 +4,10 @@ import hashlib
 from cryptography.hazmat.primitives import hashes as crypto_hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa, ec
 from cryptography.hazmat.primitives.asymmetric.padding import PSS, MGF1
-
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key
+import os
 
 def get_hash_function(name):
     if name.lower() == "sha256":
@@ -131,3 +134,26 @@ def generate_keys():
             "public": ecc_public
         }
     }
+
+def cifrar_con_ecdh_aes(priv_key_grupo_pem: str, pub_key_usuario_pem: str, datos_a_cifrar: bytes) -> bytes:
+    # Cargar claves
+    private_key = load_pem_private_key(priv_key_grupo_pem.encode(), password=None)
+    public_key = load_pem_public_key(pub_key_usuario_pem.encode())
+
+    # ECDH: generar clave compartida
+    shared_key = private_key.exchange(ec.ECDH(), public_key)
+
+    # Derivar clave AES (256-bit) usando HKDF
+    derived_key = HKDF(
+        algorithm=crypto_hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=b'grupo-key-ecdh',
+    ).derive(shared_key)
+
+    # Cifrar usando AES-GCM
+    aesgcm = AESGCM(derived_key)
+    nonce = os.urandom(12)
+    ciphertext = aesgcm.encrypt(nonce, datos_a_cifrar, None)
+
+    return nonce + ciphertext

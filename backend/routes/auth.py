@@ -79,10 +79,6 @@ async def register(register_request: RegisterRequest, db=Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    os.makedirs("private_keys", exist_ok=True)
-    with open(f"private_keys/{new_user.id_pk}_ecc_private.pem", "w") as f:
-        f.write(private)
-
     # Generar y guardar PIN
     pin = str(randint(100000, 999999))
     verification_codes[new_user.correo] = pin
@@ -92,27 +88,9 @@ async def register(register_request: RegisterRequest, db=Depends(get_db)):
 
     return {
         "message": "Usuario registrado. Verifica tu correo con el código enviado.",
-        "email": new_user.correo
+        "private_key": private,
+        "email": new_user.correo,
     }
-
-@router.get("/download-private-key")
-def download_private_key(user: User = Depends(get_current_user)):
-    ecc_path = f"private_keys/{user.id_pk}_ecc_private.pem"
-
-    if not os.path.exists(ecc_path):
-        raise HTTPException(status_code=404, detail="Private key not found")
-
-    # Opcional: crear un ZIP para descargar
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
-        zipf.write(ecc_path, arcname=f"{user.nombre}_ecc_private.pem")
-    zip_buffer.seek(0)
-
-    return StreamingResponse(
-        zip_buffer,
-        media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename=clave_privada_{user.nombre}.zip"}
-    )
 
 @router.get("/login/google")
 async def login_google(request: Request):

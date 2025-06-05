@@ -47,15 +47,13 @@ def send_individual_message(
         if receptor is None:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # 🔐 Leer la clave privada desde el folder
-        private_key_path = f"private_keys/{user.id_pk}_ecc_private.pem"
-        if not os.path.exists(private_key_path):
-            raise HTTPException(status_code=404, detail="Private key not found")
+        # 🔐 Usar la clave privada enviada en la petición
+        clave_privada = message_data.clave_privada_pem
 
-        with open(private_key_path, "r") as f:
-            clave_privada = f.read()
+        if not clave_privada or "PRIVATE KEY" not in clave_privada:
+            raise HTTPException(status_code=400, detail="Invalid or missing private key")
 
-        # 💬 Guardar el mensaje usando la clave cargada
+        # 💬 Guardar el mensaje
         new_message = guardar_mensaje_individual(
             data=Namespace(
                 id_remitente=user.id_pk,

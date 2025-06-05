@@ -2,15 +2,21 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
 from backend.utils.auth import get_current_user
+from backend.controllers.keys import cifrar_con_ecdh_aes
 from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest
 from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios, eliminar_miembro_controller
-from backend.database import get_db, User, db
+from backend.database import get_db, User, db, MiembrosGrupos
 from sqlalchemy.orm import Session
 from typing import List
 from typing import Annotated
+from base64 import b64encode
+
 
 router = APIRouter()
 
+'''
+Ruta para crear un nuevo grupo. Incluir los ids de los miembros que se quieren agregar al grupo.
+'''
 @router.post("/newGroup", response_model=GrupoCreateResponse, status_code=201)
 async def crear_grupo_endpoint(
     request: GrupoCreateRequest,
@@ -18,32 +24,64 @@ async def crear_grupo_endpoint(
     session: Session = Depends(get_db)
 ):
     try:
+        # Crear grupo y generar llaves
         grupo, llave_privada = crear_grupo(
             session=session,
             nombre=request.nombre,
         )
 
-        # ✅ Agregar automáticamente al creador como miembro del grupo
-        with db.write() as write_session:
+        # Incluir al creador
+        miembros_unicos = set(request.miembros_ids)
+        miembros_unicos.add(user.id_pk)
+
+        for miembro_id in miembros_unicos:
             agregar_miembro_controller(
                 id_grupo=grupo.id_pk,
-                id_usuario=user.id_pk,
+                id_usuario=miembro_id
             )
 
+            # Obtener clave pública del usuario
+            miembro = session.query(User).filter(User.id_pk == miembro_id).first()
+            if not miembro or not miembro.public_key:
+                raise HTTPException(status_code=400, detail=f"Usuario {miembro_id} no tiene clave pública válida")
+
+            # Cifrar llave privada del grupo con clave pública del usuario
+            try:
+                llave_privada_cifrada = cifrar_con_ecdh_aes(
+                    priv_key_grupo_pem=llave_privada,
+                    pub_key_usuario_pem=miembro.public_key,
+                    datos_a_cifrar=llave_privada.encode()
+                )
+
+                # Actualizar campo en MiembrosGrupos
+                miembro_grupo = session.query(MiembrosGrupos).filter_by(
+                    id_grupo_fk=grupo.id_pk,
+                    id_user_fk=miembro_id
+                ).first()
+
+                miembro_grupo.llave_privada_grupo_cifrada = llave_privada_cifrada
+                session.commit()
+
+            except Exception as e:
+                session.rollback()
+                raise HTTPException(status_code=500, detail=f"Error cifrando llave para usuario {miembro_id}: {str(e)}")
+
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(status_code=400, detail="Error: Ya existe un grupo con este nombre.")
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
-    except IntegrityError:
-        raise HTTPException(status_code=409, detail="Ya existe un grupo con este nombre.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creando grupo: {e}")
+        raise HTTPException(status_code=500, detail=f"Error creando grupo: {str(e)}")
 
     return GrupoCreateResponse(
         id_pk=grupo.id_pk,
         nombre_de_grupo=grupo.nombre_de_grupo,
         tipo_cifrado=grupo.tipo_cifrado,
         llave_privada=llave_privada,
-        mensaje="Grupo creado con éxito y te agregaste como miembro."
+        mensaje="Grupo creado exitosamente."
     )
+
 
 
 @router.post("/miembros", response_model=MiembroAgregarResponse, status_code=201)
@@ -87,14 +125,20 @@ def obtener_grupo(
 ):
     grupo = obtener_detalles_grupo(session, grupo_id, user.id_pk)
 
-    miembros = [
-        MiembroDetalle(
-            id=miembro.usuario.id_pk,
-            nombre=miembro.usuario.nombre,
-            correo=miembro.usuario.correo
+    miembros = []
+    for miembro in grupo.miembros_grupo:
+        llave_cifrada = None
+        if miembro.llave_privada_grupo_cifrada:
+            llave_cifrada = b64encode(miembro.llave_privada_grupo_cifrada).decode()
+
+        miembros.append(
+            MiembroDetalle(
+                id=miembro.usuario.id_pk,
+                nombre=miembro.usuario.nombre,
+                correo=miembro.usuario.correo,
+                llave_privada_cifrada=llave_cifrada
+            )
         )
-        for miembro in grupo.miembros_grupo
-    ]
 
     return GrupoDetalleResponse(
         id_pk=grupo.id_pk,
@@ -103,7 +147,44 @@ def obtener_grupo(
         miembros=miembros
     )
 
+from fastapi import HTTPException
+from base64 import b64encode
 
+@router.get("/GroupMember/{grupo_id}/{user_id}", response_model=MiembroDetalle)
+def obtener_miembro_de_grupo(
+    grupo_id: int,
+    user_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db)]
+):
+    # Verificar que el usuario que hace la solicitud pertenece al grupo
+    grupo = session.query(MiembrosGrupos).filter_by(
+        id_grupo_fk=grupo_id,
+        id_user_fk=current_user.id_pk
+    ).first()
+
+    if not grupo:
+        raise HTTPException(status_code=403, detail="No tienes acceso a este grupo.")
+
+    # Obtener miembro solicitado
+    miembro = session.query(MiembrosGrupos).filter_by(
+        id_grupo_fk=grupo_id,
+        id_user_fk=user_id
+    ).first()
+
+    if not miembro:
+        raise HTTPException(status_code=404, detail="Miembro no encontrado en el grupo.")
+
+    llave_cifrada = None
+    if miembro.llave_privada_grupo_cifrada:
+        llave_cifrada = b64encode(miembro.llave_privada_grupo_cifrada).decode()
+
+    return MiembroDetalle(
+        id=miembro.usuario.id_pk,
+        nombre=miembro.usuario.nombre,
+        correo=miembro.usuario.correo,
+        llave_privada_cifrada=llave_cifrada
+    )
 
 @router.get("/usuarios", response_model=List[UserListItem])
 def obtener_usuarios(
