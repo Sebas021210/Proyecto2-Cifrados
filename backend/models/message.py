@@ -120,6 +120,8 @@ class GroupMessageRequest(BaseModel):
 class MensajeGrupoResponse(BaseModel):
     id_transaccion: int
     remitente: str
-    mensaje: str  # ⚠️ mensaje cifrado
+    mensaje: str
+    nonce: str
+    clave_aes_cifrada: str
     firma: str
     timestamp: str
