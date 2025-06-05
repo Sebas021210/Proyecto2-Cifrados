@@ -170,7 +170,7 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
         access_token = create_access_token(data={"sub": user.correo}, expires_delta=timedelta(minutes=15))
         refresh_token = create_refresh_token(data={"sub": user.correo}, expires_delta=timedelta(days=7))
 
-        frontend_callback_url = "http://localhost:5173/auth/callback"
+        frontend_callback_url = os.getenv("FRONTEND_CALLBACK", "http://localhost:5173/auth/callback")
 
         # Agregar solo si existe
         query_data = {

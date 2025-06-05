@@ -13,7 +13,7 @@ servers:
 proxy:
   ssl: true # Disable Cloudflare Proxy if using SSL=true
   host: cf-backend.albrand.tech # Hostname for the app
-  app_port: 80
+  app_port: 8000
   healthcheck:
     interval: 3
     path: /
@@ -37,6 +37,8 @@ ssh:
   keys: ["~/.ssh/hetzner-access"] # List of SSH keys to use for authentication
 
 env:
+  clear:
+    FRONTEND_CALLBACK: "https://cf-frontend.albrand.tech/auth/callback"
   secret:
     - GOOGLE_CLIENT_ID
     - GOOGLE_CLIENT_SECRET
