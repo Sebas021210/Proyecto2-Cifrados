@@ -38,6 +38,13 @@ function ChatPage() {
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
 
+  const [grupos, setGrupos] = useState([]);
+
+  const [openMembersModal, setOpenMembersModal] = useState(false);
+  const [miembrosGrupo, setMiembrosGrupo] = useState([]);
+  const [grupoActual, setGrupoActual] = useState(null);
+  const [grupoActualId, setGrupoActualId] = useState(null);
+
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     navigate("/", { replace: true }); // redirige al login y borra el historial
@@ -45,7 +52,7 @@ function ChatPage() {
 
   const handleSend = async () => {
     if (!message.trim() || !activeUser || !privateKeyPem) return;
-
+    
     try{
       const response = await fetch(`http://localhost:8000/msg/message/${activeUser.correo}`, {
         method: "POST",
@@ -113,12 +120,125 @@ function ChatPage() {
     );
   };
 
-  const handleCreateGroup = () => {
-    console.log("Grupo:", groupName);
-    console.log("Integrantes:", selectedUsers);
-    setOpenGroupModal(false);
-    setGroupName("");
-    setSelectedUsers([]);
+  const handleCreateGroup = async () => {
+    if (!groupName.trim() || selectedUsers.length === 0) {
+      alert("El nombre del grupo y al menos un usuario son requeridos.");
+      return;
+    }
+
+    try {
+      // 1. Crear grupo
+      const responseGrupo = await fetch(
+        "http://localhost:8000/grupos/newGroup",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ nombre: groupName }),
+        }
+      );
+
+      if (!responseGrupo.ok) {
+        throw new Error("Error al crear el grupo");
+      }
+
+      const grupoData = await responseGrupo.json();
+      console.log("Grupo creado:", grupoData);
+
+      const grupoId = grupoData.id_pk;
+
+      // 2. Agregar miembros (uno por uno)
+      for (const correo of selectedUsers) {
+        // Encontrar el id del usuario por su correo
+        const usuario = users.find((u) => u.correo === correo);
+        if (!usuario) continue;
+
+        const responseMiembro = await fetch(
+          "http://localhost:8000/grupos/miembros",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              id_grupo: grupoId,
+              id_usuario: usuario.id_pk,
+            }),
+          }
+        );
+
+        if (!responseMiembro.ok) {
+          console.error(`Error al agregar miembro: ${correo}`);
+        } else {
+          const miembroData = await responseMiembro.json();
+          console.log("Miembro agregado:", miembroData);
+        }
+      }
+
+      alert("Grupo creado exitosamente con sus miembros.");
+      setOpenGroupModal(false);
+      setGroupName("");
+      setSelectedUsers([]);
+    } catch (error) {
+      console.error("Error en la creación del grupo:", error);
+      alert("Ocurrió un error al crear el grupo.");
+    }
+  };
+
+  const handleOpenGroupDetails = async (grupoId) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/grupos/GroupDetails/${grupoId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error("Error al obtener detalles del grupo");
+
+      const data = await response.json();
+      setGrupoActual(data.nombre_de_grupo);
+      setMiembrosGrupo(data.miembros);
+      setOpenMembersModal(true);
+      setGrupoActualId(grupoId);
+    } catch (error) {
+      console.error("Error fetching group details:", error);
+    }
+  };
+
+  const handleDeleteMember = async (id_usuario, nombre) => {
+    const confirm = window.confirm(
+      `¿Estás seguro que quieres eliminar a ${nombre} del grupo?`
+    );
+    if (!confirm) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/grupos/miembros`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          id_grupo: grupoActualId,
+          id_usuario: id_usuario,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Error al eliminar miembro");
+
+      // Actualizar lista localmente
+      setMiembrosGrupo((prev) => prev.filter((u) => u.id_pk !== id_usuario));
+      alert("Miembro eliminado exitosamente");
+    } catch (error) {
+      console.error("Error al eliminar miembro:", error);
+      alert("Hubo un error al eliminar el miembro");
+    }
   };
 
   useEffect(() => {
@@ -138,7 +258,6 @@ function ChatPage() {
         if (data.length > 0) {
           setActiveUser(data[0]);
         }
-
       } catch (error) {
         console.error("Error fetching users:", error);
         setUsers([]);
@@ -222,6 +341,28 @@ function ChatPage() {
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
+
+  useEffect(() => {
+    const fetchGrupos = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/grupos/getGroups", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Error al obtener los grupos");
+        }
+        const data = await response.json();
+        console.log("Grupos obtenidos:", data);
+        setGrupos(data);
+      } catch (error) {
+        console.error("Error fetching grupos:", error);
+      }
+    };
+
+    fetchGrupos();
+  }, [accessToken]);
 
   return (
     <Box
@@ -345,39 +486,63 @@ function ChatPage() {
 
         {/* LISTADO DE USUARIOS / GRUPOS */}
         <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 1 }}>
-          {(tab === 0 ? filteredUsers : ["Grupo A", "Grupo B", "Grupo C"]).map(
-            (item, i) => (
+          {(tab === 0 ? filteredUsers : grupos).map((item, i) => (
+            <Box
+              key={i}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                mb: 2,
+                gap: 1,
+                justifyContent: "space-between",
+                cursor: "pointer",
+                backgroundColor:
+                  tab === 0 && activeUser?.id_pk === item.id_pk
+                    ? "#2a2a2a"
+                    : "transparent",
+                borderRadius: 1,
+                px: 1,
+                py: 0.5,
+                "&:hover": { backgroundColor: "#333" },
+              }}
+            >
               <Box
-                key={i}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  mb: 2,
-                  gap: 1,
-                  cursor: "pointer",
-                  backgroundColor: activeUser?.id_pk === item.id_pk ? "#2a2a2a" : "transparent",
-                  borderRadius: 1,
-                  px: 1,
-                  py: 0.5,
-                  "&:hover": { backgroundColor: "#333" },
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                onClick={() => {
+                  if (tab === 0) {
+                    setActiveUser(item);
+                  }
                 }}
-                onClick={() => setActiveUser(item)}
               >
-                <Avatar
-                  alt={tab === 0 ? item.nombre : item}
-                  src="/broken-image.jpg"
-                />
+                <Avatar alt={tab === 0 ? item.nombre : item.nombre_de_grupo} />
                 <Box sx={{ display: "flex", flexDirection: "column" }}>
                   <Typography variant="body1" fontWeight="bold">
-                    {tab === 0 ? item.nombre : item}
+                    {tab === 0 ? item.nombre : item.nombre_de_grupo}
                   </Typography>
                   <Typography variant="subtitle2">
-                    {tab === 0 ? item.correo : ""}
+                    {tab === 0 ? item.correo : `Cifrado: ${item.tipo_cifrado}`}
                   </Typography>
                 </Box>
               </Box>
-            )
-          )}
+
+              {tab === 1 && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  sx={{
+                    color: "#fff",
+                    borderColor: "#aaa",
+                    fontSize: "0.7rem",
+                    textTransform: "none",
+                    "&:hover": { borderColor: "#fff" },
+                  }}
+                  onClick={() => handleOpenGroupDetails(item.id_pk)}
+                >
+                  Ver miembros
+                </Button>
+              )}
+            </Box>
+          ))}
         </Box>
       </Paper>
 
@@ -608,6 +773,67 @@ function ChatPage() {
             }}
           >
             Crear grupo
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal para ver miembros del grupo */}
+      <Dialog
+        open={openMembersModal}
+        onClose={() => setOpenMembersModal(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ backgroundColor: "#1F1F1F", color: "#fff" }}>
+          Miembros del grupo
+        </DialogTitle>
+        <DialogContent sx={{ backgroundColor: "#2C2C2C" }}>
+          {miembrosGrupo.length === 0 ? (
+            <Typography color="#aaa">
+              Este grupo no tiene miembros aún.
+            </Typography>
+          ) : (
+            miembrosGrupo.map((miembro, index) => (
+              <Box
+                key={index}
+                sx={{
+                  mb: 1,
+                  p: 1,
+                  borderBottom: "1px solid #444",
+                  color: "#fff",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Box>
+                  <Typography fontWeight="bold">{miembro.nombre}</Typography>
+                  <Typography variant="body2">{miembro.correo}</Typography>
+                </Box>
+                <Button
+                  onClick={() =>
+                    handleDeleteMember(miembro.id_pk, miembro.nombre)
+                  }
+                  sx={{
+                    minWidth: "30px",
+                    color: "#f44336",
+                    borderColor: "#f44336",
+                    fontSize: "1.2rem",
+                    "&:hover": { backgroundColor: "#440000" },
+                  }}
+                >
+                  🗑️
+                </Button>
+              </Box>
+            ))
+          )}
+        </DialogContent>
+        <DialogActions sx={{ backgroundColor: "#2C2C2C", p: 2 }}>
+          <Button
+            onClick={() => setOpenMembersModal(false)}
+            sx={{ color: "#ccc", textTransform: "none" }}
+          >
+            Cerrar
           </Button>
         </DialogActions>
       </Dialog>
