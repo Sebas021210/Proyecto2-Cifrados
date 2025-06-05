@@ -51,3 +51,9 @@ GET localhost:8000/blockchain/transactions/integridad
 Authorization: Bearer {{ token }}
 Content-Type: application/json
 Accept: application/json
+
+### Verify integrity of a transaction for a group
+GET localhost:8000/blockchain/transactions/integridad-grupal
+Authorization: Bearer {{ token }}
+Content-Type: application/json
+Accept: application/json

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from backend.controllers.firma import calcular_hash_mensaje, decrypt_message_aes
 from backend.utils.auth import get_current_user
-from backend.database import get_db, Blockchain, User, Mensajes
+from backend.database import get_db, Blockchain, User, Mensajes, MensajesGrupo
 from backend.models.transactions import ManualTransaction
 
 router = APIRouter()
@@ -131,4 +131,83 @@ def verificar_integridad_blockchain(
     return {
         "integridad": True,
         "mensaje": "Todos los bloques son válidos y la cadena está íntegra"
+    }
+
+
+@router.get("/transactions/integridad-grupal")
+def verificar_integridad_blockchain_grupal(
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+):
+    mensajes = db.query(MensajesGrupo).order_by(MensajesGrupo.id_transacciones_pk).all()
+    errores = []
+
+    for i, mensaje in enumerate(mensajes):
+        hash_esperado = mensaje.hash_mensaje
+
+        # Obtener bloque correspondiente
+        bloque = db.query(Blockchain).filter(Blockchain.id_bloque_pk == mensaje.id_bloque_grupo).first()
+
+        if not bloque:
+            errores.append({
+                "id": mensaje.id_transacciones_pk,
+                "error": "Bloque asociado no encontrado"
+            })
+            continue
+
+        # # Verificar hash del mensaje
+        # try:
+        #     recalculated_hash = calcular_hash_mensaje(
+        #         mensaje.mensaje,  # Cifrado, asumimos hash sobre texto cifrado (como estaba al enviarlo)
+        #         algoritmo="sha256"
+        #     )
+        #
+        #     if recalculated_hash != hash_esperado:
+        #         errores.append({
+        #             "id": mensaje.id_transacciones_pk,
+        #             "error": "Hash del mensaje no coincide",
+        #             "esperado": recalculated_hash,
+        #             "actual": hash_esperado
+        #         })
+        #
+        # except Exception as e:
+        #     errores.append({
+        #         "id": mensaje.id_transacciones_pk,
+        #         "error": f"Error al calcular hash del mensaje: {str(e)}"
+        #     })
+        #     continue
+
+        # Verificar el hash anterior
+        if i == 0:
+            expected_hash_anterior = "0" * 64
+        else:
+            bloque_anterior = db.query(Blockchain).filter(
+                Blockchain.id_bloque_pk == mensajes[i - 1].id_bloque_grupo
+            ).first()
+
+            if not bloque_anterior:
+                errores.append({
+                    "id": mensaje.id_transacciones_pk,
+                    "error": "Bloque anterior no encontrado"
+                })
+                continue
+
+            expected_hash_anterior = bloque_anterior.hash_actual
+
+        if bloque.hash_anterior != expected_hash_anterior:
+            errores.append({
+                "id": mensaje.id_transacciones_pk,
+                "error": "Hash anterior del bloque no coincide con el hash del bloque anterior"
+            })
+
+    if errores:
+        return {
+            "integridad": False,
+            "mensaje": "Existen errores en la cadena de bloques de mensajes grupales",
+            "detalles": errores
+        }
+
+    return {
+        "integridad": True,
+        "mensaje": "Todos los bloques de mensajes grupales son válidos y la cadena está íntegra"
     }
