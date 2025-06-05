@@ -27,3 +27,14 @@ Authorization: Bearer {{ token }}
 Content-Type: application/json
 Accept: application/json
 
+### Send individual message
+POST localhost:8000/msg/message/mark.albrand5@gmail.com
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{ token }}
+
+{
+  "mensaje": "Hello, this is a test message!",
+  "clave_privada_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgUz/l3lQZskDz+GqM\naf9dM2UySv9i/rO3YHQ9R3D9wkihRANCAAS8V+opfsE8WjgordHZCNPmuP+VcmU7\nWkCIBM0Qx9Nz5vBTYF2OT4m3oQz4350CvWn6vvVlej0spRrDtSlbp/18\n-----END PRIVATE KEY-----\n"
+}
+

@@ -24,11 +24,11 @@ class Blockchain(Base):
     hash_anterior = Column(String, nullable=False)
     hash_actual = Column(String, nullable=False)
     nonce = Column(String, nullable=False)
-    timestamp = Column(String, nullable=False)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow())
 
-    # Relaciones inversas (opcional pero útil)
-    mensajes = relationship("Mensajes", back_populates="bloque")
-    mensajes_grupo = relationship("MensajesGrupo", back_populates="bloque")
+    mensajes = relationship("Mensajes", back_populates="bloque", foreign_keys='Mensajes.id_bloque')
+    mensajes_grupo = relationship("MensajesGrupo", back_populates="bloque", foreign_keys='MensajesGrupo.id_bloque_grupo')
+
 
 # Tabla Mensajes (individuales)
 class Mensajes(Base):

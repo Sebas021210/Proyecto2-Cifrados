@@ -1,21 +1,25 @@
 from backend.database import db, User, Mensajes, Blockchain
 from backend.controllers.firma import calcular_hash_mensaje, verify_signature, sign_message, encrypt_message_aes, encrypt_aes_key_with_ecc
+
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
 import os
 import hashlib
 import base64
 import json
+
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 from datetime import datetime
+
 
 def crear_bloque(hash_mensaje: str, db_session) -> int:
     ultimo_bloque = db_session.query(Blockchain).order_by(Blockchain.id_bloque_pk.desc()).first()
     hash_anterior = ultimo_bloque.hash_actual if ultimo_bloque else "0" * 64
     nonce = os.urandom(8).hex()
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.utcnow()
 
     contenido = f"{hash_anterior}{hash_mensaje}{nonce}{timestamp}"
     hash_actual = hashlib.sha256(contenido.encode()).hexdigest()
@@ -29,6 +33,7 @@ def crear_bloque(hash_mensaje: str, db_session) -> int:
     db_session.add(nuevo_bloque)
     db_session.flush()
     return nuevo_bloque.id_bloque_pk
+
 
 def guardar_mensaje_individual(data, algoritmo_hash: str = "sha256"):
     with db.write() as session:
@@ -61,7 +66,8 @@ def guardar_mensaje_individual(data, algoritmo_hash: str = "sha256"):
         session.commit()
 
         return {"message": "Mensaje guardado correctamente", "timestamp": nuevo_mensaje.timestamp}
-    
+
+
 def procesar_mensaje_para_envio(mensaje: str, clave_privada_pem: str, clave_publica_receptor_pem: str, algoritmo_hash="sha256"):
     # Cargar claves
     private_key = load_pem_private_key(clave_privada_pem.encode(), password=None)
@@ -91,14 +97,15 @@ def procesar_mensaje_para_envio(mensaje: str, clave_privada_pem: str, clave_publ
         "clave_aes": clave_aes
     }
 
+
 def verificar_y_descifrar_mensaje(
-    mensaje_cifrado: dict,
-    clave_aes_cifrada: dict,
-    firma: str,
-    hash_mensaje: str,
-    clave_privada_receptor_pem: str,
-    clave_publica_remitente_pem: str,
-    algoritmo_hash: str = "sha256"
+        mensaje_cifrado: dict,
+        clave_aes_cifrada: dict,
+        firma: str,
+        hash_mensaje: str,
+        clave_privada_receptor_pem: str,
+        clave_publica_remitente_pem: str,
+        algoritmo_hash: str = "sha256"
 ) -> str:
     # Derivar clave AES a partir de la clave privada del receptor y la clave pública efímera
     ephemeral_public_key = serialization.load_pem_public_key(clave_aes_cifrada["ephemeral_public_key"].encode())
