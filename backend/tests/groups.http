@@ -86,7 +86,7 @@ Accept: application/json
 
 {
   "mensaje": "Este es un mensaje secreto para el grupo",
-  "clave_privada_usuario_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgZkm5wKsP4JpwS07j\niObHmg024bkvr4dgnl2PY9/U9aChRANCAAT/aZNhA92lNR5h+Ahi67c0BU/3+3ih\n6tHTtJsNWAzDXifClmQr2mn61GIvPmMRgyI8lI2ylSLyPahOCig+F8Fn\n-----END PRIVATE KEY-----\n"
+  "clave_privada_usuario_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgCcDc6wrKcRVF7Uef\n85L1QRkvuby9u3JB4JNduf0J8fShRANCAAT2nJAOqRB7JJSJcFhcQGtlSXj6NZW/\nVZEzGC66MGZOrjlE0dT/mE/qpKDCY4yQNnriaSYQVBQJwNPU135nMG2U\n-----END PRIVATE KEY-----\n"
 }
 
 ### Obtener mensajes del grupo
@@ -111,7 +111,7 @@ Accept: application/json
   "mensaje_cifrado": "{{ mensaje_cifrado }}",
   "nonce": "{{ nonce }}",
   "clave_aes_cifrada": {{ clave_cifrada }},
-  "private_key_grupo_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgp+Sii0sjhg9VrpbB\nerPWqeuMPmDKASgAAdFjwfdHBIuhRANCAAS3zJ+ZKYi1nh9w+Ea2wFWI0D54cgVZ\ndW5Lg8Fm4iFex3w6SBPLmRF2xMfjmNB5Dq8sjGPo/ySgBF8ecnEK4UHn\n-----END PRIVATE KEY-----\n"
+  "private_key_grupo_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgLUmXhxDPbLgllNQB\nF/HlH02b6qfnhH1uT54EU+DaX86hRANCAARLfJmzCBi4StNtw3UA46MdYd3u14Vd\nTghk6FMQ4VXulWGsWVCGvsWwuj/pqY+ZQcU7/TL36vAJ68XIchHf3sBS\n-----END PRIVATE KEY-----\n"
 }
 
 ### Clear DB

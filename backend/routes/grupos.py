@@ -21,6 +21,7 @@ from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, Miem
 from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios, eliminar_miembro_controller, encrypt_aes_key_with_public_key, obtener_mensajes_de_grupo
 from backend.database import get_db, User, MiembrosGrupos, MensajesGrupo, Grupos
 from backend.models.message import DecryptGroupMessageRequest, DecryptGroupMessageResponse
+from backend.controllers.messages import crear_bloque, calcular_hash_mensaje
 
 
 router = APIRouter()
@@ -283,12 +284,13 @@ def enviar_mensaje_grupo(
     # 6. Cifrar clave AES con clave pública del grupo (ECIES)
     clave_aes_cifrada_json = encrypt_aes_key_with_public_key(clave_aes, grupo.llave_publica)
 
-    # 7. Calcular hash SHA-256 del mensaje plano para integridad
-    hash_mensaje = hashes.Hash(hashes.SHA256())
-    hash_mensaje.update(datos.mensaje.encode())
-    hash_hex = hash_mensaje.finalize().hex()
+    # 7. Calcular hash del mensaje plano
+    hash_mensaje = calcular_hash_mensaje(datos.mensaje, "sha256")
 
-    # 8. Guardar mensaje en DB
+    # 8. Crear bloque en la blockchain
+    id_bloque = crear_bloque(hash_mensaje, session)
+
+    # 9. Guardar mensaje en DB incluyendo el bloque
     nuevo_mensaje = MensajesGrupo(
         id_grupo_fk=grupo_id,
         id_remitente_fk=user.id_pk,
@@ -296,13 +298,14 @@ def enviar_mensaje_grupo(
         nonce=nonce_mensaje,
         clave_aes_cifrada=clave_aes_cifrada_json,
         firma=firma,
-        hash_mensaje=hash_hex,
-        timestamp=datetime.utcnow()
+        hash_mensaje=hash_mensaje,
+        timestamp=datetime.utcnow(),
+        id_bloque_grupo=id_bloque  # Asocia el mensaje al nuevo bloque
     )
     session.add(nuevo_mensaje)
     session.commit()
 
-    return {"msg": "Mensaje grupal enviado correctamente"}
+    return {"msg": "Mensaje grupal enviado correctamente", "id_bloque": id_bloque}
 
 @router.get("/GroupMessages/{grupo_id}", response_model=List[MensajeGrupoResponse])
 def obtener_mensajes_grupo(
