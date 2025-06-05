@@ -205,17 +205,20 @@ function ChatPage() {
     if (!confirm) return;
 
     try {
-      const response = await fetch(`https://cf-backend.albrand.tech/grupos/miembros`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          id_grupo: grupoActualId,
-          id_usuario: id_usuario,
-        }),
-      });
+      const response = await fetch(
+        `https://cf-backend.albrand.tech/grupos/miembros`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            id_grupo: grupoActualId,
+            id_usuario: id_usuario,
+          }),
+        }
+      );
 
       if (!response.ok) throw new Error("Error al eliminar miembro");
 
@@ -233,7 +236,7 @@ function ChatPage() {
 
     try {
       const resMsgs = await fetch(
-        `http://localhost:8000/grupos/GroupMessages/${grupo.id_pk}`,
+        `https://cf-backend.albrand.tech/grupos/GroupMessages/${grupo.id_pk}`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -244,7 +247,7 @@ function ChatPage() {
       const mensajes = await resMsgs.json();
 
       const resClave = await fetch(
-        "http://localhost:8000/grupos/descifrar_llave_privada",
+        "https://cf-backend.albrand.tech/grupos/descifrar_llave_privada",
         {
           method: "POST",
           headers: {
@@ -271,7 +274,7 @@ function ChatPage() {
             }
 
             const resDescifrado = await fetch(
-              "http://localhost:8000/grupos/descifrar_mensaje_grupo",
+              "https://cf-backend.albrand.tech/grupos/descifrar_mensaje_grupo",
               {
                 method: "POST",
                 headers: {
@@ -341,11 +344,14 @@ function ChatPage() {
   useEffect(() => {
     const getUsersData = async () => {
       try {
-        const response = await fetch("https://cf-backend.albrand.tech/grupos/usuarios", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+        const response = await fetch(
+          "https://cf-backend.albrand.tech/grupos/usuarios",
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
         if (!response.ok) {
           throw new Error("Error al obtener los usuarios");
         }
@@ -490,11 +496,14 @@ function ChatPage() {
   useEffect(() => {
     const fetchGrupos = async () => {
       try {
-        const response = await fetch("https://cf-backend.albrand.tech/grupos/getGroups", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+        const response = await fetch(
+          "https://cf-backend.albrand.tech/grupos/getGroups",
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
         if (!response.ok) {
           throw new Error("Error al obtener los grupos");
         }
