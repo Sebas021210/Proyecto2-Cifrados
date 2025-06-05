@@ -81,6 +81,14 @@ class MiembroDetalle(BaseModel):
     class Config:
         orm_mode = True
 
+class MiembroDetalleMono(BaseModel):
+    id: int
+    nombre: str
+    correo: str
+    llave_privada_cifrada: Optional[str] = None
+
+    class Config:
+        orm_mode = True
 
 class GrupoDetalleResponse(BaseModel):
     id_pk: int

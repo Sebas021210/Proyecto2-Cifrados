@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from backend.models.user import UserBase
 from backend.utils.auth import get_current_user
 from backend.controllers.keys import cifrar_con_ecdh_aes
-from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest, GroupMessageRequest, MensajeGrupoResponse
+from backend.models.message import GrupoCreateRequest, GrupoCreateResponse, MiembroAgregarRequest, MiembroAgregarResponse, GrupoListItem, GrupoDetalleResponse, MiembroDetalle, UserListItem, MiembroEliminarRequest, GroupMessageRequest, MensajeGrupoResponse,MiembroDetalleMono
 from backend.controllers.group import listar_grupos, crear_grupo, agregar_miembro_controller, obtener_detalles_grupo, listar_usuarios, eliminar_miembro_controller, encrypt_aes_key_with_public_key, obtener_mensajes_de_grupo
 from backend.database import get_db, User, db, MiembrosGrupos, MensajesGrupo, Grupos
 from sqlalchemy.orm import Session
@@ -150,7 +150,7 @@ def obtener_grupo(
 from fastapi import HTTPException
 from base64 import b64encode
 
-@router.get("/GroupMember/{grupo_id}/{user_id}", response_model=MiembroDetalle)
+@router.get("/GroupMember/{grupo_id}/{user_id}", response_model=MiembroDetalleMono)
 def obtener_miembro_de_grupo(
     grupo_id: int,
     user_id: int,
@@ -179,7 +179,7 @@ def obtener_miembro_de_grupo(
     if miembro.llave_privada_grupo_cifrada:
         llave_cifrada = b64encode(miembro.llave_privada_grupo_cifrada).decode()
 
-    return MiembroDetalle(
+    return MiembroDetalleMono(
         id=miembro.usuario.id_pk,
         nombre=miembro.usuario.nombre,
         correo=miembro.usuario.correo,

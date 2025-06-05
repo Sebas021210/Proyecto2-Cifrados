@@ -139,7 +139,7 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
 
         user = db.query(User).filter(User.correo == email).first()
         if not user:
-            public, private = generate_ecc_keys()
+            private, public = generate_ecc_keys()
             user = User(
                 correo=email,
                 public_key=public,
@@ -161,6 +161,7 @@ async def auth_callback(code: str, request: Request, db=Depends(get_db)):
             "access_token": access_token,
             "name": user.nombre,
             "email": user.correo,
+            "private_key": private
         })
 
 
