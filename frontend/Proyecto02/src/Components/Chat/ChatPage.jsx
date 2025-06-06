@@ -243,8 +243,11 @@ function ChatPage() {
           },
         }
       );
+
       if (!resMsgs.ok) throw new Error("Error al obtener mensajes del grupo");
+
       const mensajes = await resMsgs.json();
+      console.log("📦 Mensajes cifrados obtenidos:", mensajes);
 
       const resClave = await fetch(
         "https://cf-backend.albrand.tech/grupos/descifrar_llave_privada",
@@ -260,14 +263,22 @@ function ChatPage() {
           }),
         }
       );
-      if (!resClave.ok)
+
+      if (!resClave.ok) {
+        const errorText = await resClave.text();
+        console.error("❌ Error descifrando llave:", errorText);
         throw new Error("Error al descifrar la llave privada del grupo");
+      }
 
       const { llave_privada_grupo } = await resClave.json();
+      console.log("🔑 Llave privada del grupo descifrada");
 
       const mensajesDescifrados = await Promise.all(
         mensajes.map(async (msg) => {
           try {
+            console.log("📨 Mensaje recibido:", msg);
+            console.log("🔍 Usuarios cargados:", users);
+
             let claveParsed = msg.clave_aes_cifrada;
             if (typeof claveParsed === "string") {
               claveParsed = JSON.parse(claveParsed);
@@ -298,18 +309,19 @@ function ChatPage() {
 
             const { mensaje_plano } = await resDescifrado.json();
 
-            const remitente = users.find(
-              (u) => u.id_pk === msg.id_remitente_fk
-            );
-            const remitenteNombre = remitente
-              ? remitente.nombre
-              : "Desconocido";
+            const remitenteCorreo = msg.remitente ?? "Desconocido";
+
+            console.log("✅ Remitente procesado:", remitenteCorreo);
+
+            console.log("💌 Remitente recibido desde backend:", msg.remitente);
 
             return {
-              text: `${remitenteNombre}: ${mensaje_plano}`,
+              text: mensaje_plano,
+              remitente: remitenteCorreo,
+              rawRemitente: msg.remitente,
               type:
-                msg.id_remitente_fk === remitente?.id_pk &&
-                remitente?.correo === activeUser?.correo
+                msg.remitente?.toLowerCase() ===
+                activeUser?.correo?.toLowerCase()
                   ? "sent"
                   : "received",
               timestamp: msg.timestamp,
@@ -328,15 +340,7 @@ function ChatPage() {
   };
 
   useEffect(() => {
-    setGroupMessages([]);
     if (activeGroup && privateKeyPem) {
-      fetchGroupMessages();
-    }
-  }, [activeGroup, privateKeyPem]);
-
-  useEffect(() => {
-    if (activeGroup && privateKeyPem) {
-      console.log("🔁 Cambio de grupo detectado:", activeGroup.nombre_de_grupo);
       fetchGroupMessages();
     }
   }, [activeGroup, privateKeyPem]);
@@ -776,7 +780,15 @@ function ChatPage() {
                     maxWidth: "70%",
                   }}
                 >
-                  {msg.text}
+                  {msg.remitente && (
+                    <Typography
+                      variant="caption"
+                      sx={{ fontWeight: "bold", color: "#333" }}
+                    >
+                      {msg.remitente}
+                    </Typography>
+                  )}
+                  <Typography variant="body1">{msg.text}</Typography>
                 </Paper>
               </Box>
             ))
